@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SKT 대리점 오늘의 정책표</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <style>
+    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+    body { font-family: 'Pretendard', sans-serif; background-color: #f1f5f9; }
+  </style>
+</head>
+<body class="pb-12">
+  <header class="bg-red-600 text-white p-4 sticky top-0 z-50 shadow-md">
+    <div class="max-w-md mx-auto flex justify-between items-center">
+      <div>
+        <span class="text-xs bg-red-800 px-2 py-0.5 rounded font-bold">SKT 더블유대리점</span>
+        <h1 class="text-xl font-bold mt-1">오늘의 단가표 & 정책</h1>
+      </div>
+      <button onclick="fetchSheetData()" class="bg-red-700 hover:bg-red-800 text-white p-2 rounded-full text-xs flex items-center gap-1 transition">
+        <i class="fas fa-sync-alt" id="syncIcon"></i> 동기화
+      </button>
+    </div>
+  </header>
+
+  <main class="max-w-md mx-auto p-4 space-y-4">
+    <!-- 검색 및 가입유형 선택 -->
+    <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 space-y-3">
+      <div class="relative">
+        <i class="fas fa-search absolute left-3 top-3 text-slate-400"></i>
+        <input type="text" id="searchInput" placeholder="기종명/모델코드 검색 (예: 플립, F761, S24)" class="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+      </div>
+      
+      <!-- 010 / MNP / 기변 탭 -->
+      <div class="flex bg-slate-100 p-1 rounded-lg">
+        <button onclick="setType('010')" id="tab-010" class="type-btn active flex-1 py-1.5 text-xs font-bold rounded-md bg-white text-red-600 shadow-sm">010 신규</button>
+        <button onclick="setType('MNP')" id="tab-MNP" class="type-btn flex-1 py-1.5 text-xs font-bold rounded-md text-slate-500">MNP 번이</button>
+        <button onclick="setType('기변')" id="tab-기변" class="type-btn flex-1 py-1.5 text-xs font-bold rounded-md text-slate-500">기기변경</button>
+      </div>
+    </div>
+
+    <!-- 로딩 안내 -->
+    <div id="loading" class="text-center py-8 text-slate-500 text-sm">
+      <i class="fas fa-spinner fa-spin text-2xl text-red-600 mb-2"></i>
+      <p id="loadingText">구글 시트에서 최신 단가 불러오는 중...</p>
+    </div>
+
+    <!-- 목록 -->
+    <div id="policyList" class="space-y-3"></div>
+  </main>
+
+  <script>
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbxTMvbf38L7yqbcXh-m9CVZ4UTA6a1AwGigdd3UrEaH935ydCCe_mx69vBiM2vu8a3sKw/exec';
+    let allPolicies = [];
+    let currentType = '010';
+    let timeoutTimer = null;
+
+    function fetchSheetData() {
+      const syncIcon = document.getElementById('syncIcon');
+      const loading = document.getElementById('loading');
+      
+      syncIcon.classList.add('fa-spin');
+      loading.style.display = 'block';
+
+      const oldScript = document.getElementById('gas-jsonp-script');
+      if (oldScript) oldScript.remove();
+
+      if (timeoutTimer) clearTimeout(timeoutTimer);
+      timeoutTimer = setTimeout(() => {
+        syncIcon.classList.remove('fa-spin');
+        loading.style.display = 'none';
+        if (allPolicies.length === 0) {
+          document.getElementById('policyList').innerHTML = `
+            <div class="bg-red-50 p-4 rounded-xl text-center text-xs text-red-600 border border-red-200">
+              <strong>데이터 동기화 실패</strong><br><br>
+              스마트폰 인터넷 상태 확인 후 상단 [🔄 동기화] 버튼을 눌러주세요.
+            </div>`;
+        }
+      }, 10000);
+
+      const script = document.createElement('script');
+      script.id = 'gas-jsonp-script';
+      script.src = `${GAS_URL}?callback=handleGasResponse&_=` + new Date().getTime();
+      document.body.appendChild(script);
+    }
+
+    window.handleGasResponse = function(data) {
+      if (timeoutTimer) clearTimeout(timeoutTimer);
+      const syncIcon = document.getElementById('syncIcon');
+      const loading = document.getElementById('loading');
+
+      syncIcon.classList.remove('fa-spin');
+      loading.style.display = 'none';
+
+      if (Array.isArray(data) && data.length > 0) {
+        parseGasRows(data);
+        renderPolicies();
+      } else {
+        document.getElementById('policyList').innerHTML = `
+          <div class="text-center py-8 text-slate-400 text-sm">불러올 정책 데이터가 없습니다.</div>`;
+      }
+    };
+
+    // 카테고리별 (요금제, 공통인센티브, 선약인센티브) 데이터 추출
+    function getCategoryData(planCell, commonCell, selectCell, defaultPlan) {
+      let plan = defaultPlan;
+      if (planCell !== undefined && planCell !== null && String(planCell).trim() !== '' && String(planCell).trim() !== 'None') {
+        plan = String(planCell).trim();
+      }
+
+      let common = (commonCell !== undefined && commonCell !== null && String(commonCell).trim() !== '' && String(commonCell).trim() !== 'None') 
+                   ? String(commonCell).trim() : '0';
+
+      let select = (selectCell !== undefined && selectCell !== null && String(selectCell).trim() !== '' && String(selectCell).trim() !== 'None') 
+                   ? String(selectCell).trim() : common;
+
+      return { plan, common, select };
+    }
+
+    function parseGasRows(rows) {
+      let lastModel = '';
+      let lastPlan010 = '베스트109';
+      let lastPlanMNP = '베스트109';
+      let lastPlanChange = '베스트109';
+      allPolicies = [];
+
+      for (let i = 3; i < rows.length; i++) {
+        const r = rows[i];
+        if (!r || !Array.isArray(r) || r.length < 2) continue;
+
+        let rawPet = r[0] ? String(r[0]).trim() : '';
+        if (rawPet && rawPet !== 'None' && rawPet !== '모 델' && rawPet !== '모 델 명') {
+          lastModel = rawPet;
+        }
+        let modelPet = lastModel || '기본모델';
+
+        let modelCode = r[1] ? String(r[1]).trim() : '';
+        if (!modelCode || modelCode === '모 델 명' || modelCode === '모델명' || modelCode === 'None' || modelCode === '출고가') {
+          continue;
+        }
+
+        let price = (r[2] !== undefined && r[2] !== null) ? String(r[2]).replace(/,/g, '') : '0';
+        let sub010 = (r[3] !== undefined && r[3] !== null) ? String(r[3]).replace(/,/g, '') : '0';
+        let subChange = (r[4] !== undefined && r[4] !== null) ? String(r[4]).replace(/,/g, '') : '0';
+
+        // 구글 시트 실제 위치(숨김열 제외) 100% 매칭
+        // 010 신규 (F열: 요금제[5], G열: 공통[6], H열: 선약[7])
+        const g010 = getCategoryData(r[5], r[6], r[7], lastPlan010);
+        if (g010.plan) lastPlan010 = g010.plan;
+
+        // MNP 번이 (I열: 요금제[8], J열: 공통[9], K열: 선약[10])
+        const gMNP = getCategoryData(r[8], r[9], r[10], lastPlanMNP);
+        if (gMNP.plan) lastPlanMNP = gMNP.plan;
+
+        // 기기변경 (L열: 요금제[11], M열: 공통[12], N열: 선약[13])
+        const gChange = getCategoryData(r[11], r[12], r[13], lastPlanChange);
+        if (gChange.plan) lastPlanChange = gChange.plan;
+
+        // O열(14): 추지 추가정책금, P열(15): 010/MNP 추지기준, Q열(16): 기변 추지기준
+        let addPolicyVal = (r[14] !== undefined && r[14] !== null) ? String(r[14]).trim() : '';
+        let target010MNP = (r[15] !== undefined && r[15] !== null) ? String(r[15]).trim() : '';
+        let targetChange = (r[16] !== undefined && r[16] !== null) ? String(r[16]).trim() : '';
+
+        allPolicies.push({
+          petName: modelPet,
+          code: modelCode,
+          price: Number(price) || 0,
+          sub010: Number(sub010) || 0,
+          subChange: Number(subChange) || 0,
+          '010': g010,
+          'MNP': gMNP,
+          '기변': gChange,
+          addPolicyVal: addPolicyVal,
+          target010MNP: target010MNP,
+          targetChange: targetChange
+        });
+      }
+    }
+
+    function renderPolicies() {
+      const searchInput = document.getElementById('searchInput');
+      const search = searchInput ? searchInput.value.toLowerCase().replace(/\s+/g, '') : '';
+      const list = document.getElementById('policyList');
+      list.innerHTML = '';
+
+      const filtered = allPolicies.filter(p => {
+        const pet = p.petName.toLowerCase().replace(/\s+/g, '');
+        const code = p.code.toLowerCase().replace(/\s+/g, '');
+        return pet.includes(search) || code.includes(search);
+      });
+
+      if (filtered.length === 0) {
+        list.innerHTML = `<div class="text-center py-8 text-slate-400 text-sm">조회된 단가 정보가 없습니다.</div>`;
+        return;
+      }
+
+      filtered.forEach(p => {
+        const typeData = p[currentType];
+        const subAmount = (currentType === '기변') ? p.subChange : p.sub010;
+
+        const targetValue = (currentType === '기변') ? p.targetChange : p.target010MNP;
+        
+        let chujiBadge = '';
+        if (p.addPolicyVal && p.addPolicyVal !== 'None' && p.addPolicyVal !== '' &&
+            targetValue && targetValue !== 'None' && targetValue !== '') {
+          chujiBadge = `
+            <div class="mt-1 text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-semibold inline-block">
+              추지원금 ${targetValue} 설정 시 +${p.addPolicyVal}만
+            </div>
+          `;
+        }
+
+        const card = `
+          <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-3">
+            <div class="flex justify-between items-start border-b pb-2 border-slate-100">
+              <div>
+                <span class="text-[10px] font-bold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">${p.petName}</span>
+                <h3 class="font-bold text-slate-800 text-base mt-0.5">${p.code}</h3>
+                <div class="text-xs text-slate-400">출고가: ${p.price.toLocaleString()}원</div>
+              </div>
+              <div class="text-right">
+                <span class="text-[10px] bg-red-100 text-red-600 font-bold px-1.5 py-0.5 rounded">${currentType} 기준</span>
+                <div class="text-xs text-slate-500 mt-1">공통지원금 (베스트109 기준): <span class="font-bold text-slate-700">${subAmount.toLocaleString()}원</span></div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 text-center">
+              <div class="bg-slate-50 p-2 rounded-lg border border-slate-100 flex flex-col justify-center items-center">
+                <div class="text-[11px] text-slate-500 font-medium">공통 인센티브</div>
+                <div class="text-lg font-extrabold text-red-600">${typeData.common} <span class="text-xs">만원</span></div>
+              </div>
+              <div class="bg-slate-50 p-2 rounded-lg border border-slate-100 flex flex-col justify-center items-center">
+                <div class="text-[11px] text-slate-500 font-medium">선약 인센티브</div>
+                <div class="text-lg font-extrabold text-blue-600">${typeData.select} <span class="text-xs">만원</span></div>
+                ${chujiBadge}
+              </div>
+            </div>
+
+            <div class="text-[11px] text-slate-400 text-right">
+              기준요금제: <span class="font-semibold text-slate-600">${typeData.plan}</span>
+            </div>
+          </div>
+        `;
+        list.innerHTML += card;
+      });
+    }
+
+    function setType(type) {
+      currentType = type;
+      document.querySelectorAll('.type-btn').forEach(btn => {
+        btn.classList.remove('bg-white', 'text-red-600', 'shadow-sm');
+        btn.classList.add('text-slate-500');
+      });
+      const activeBtn = document.getElementById(`tab-${type}`);
+      if (activeBtn) {
+        activeBtn.classList.add('bg-white', 'text-red-600', 'shadow-sm');
+        activeBtn.classList.remove('text-slate-500');
+      }
+
+      renderPolicies();
+    }
+
+    document.getElementById('searchInput').addEventListener('input', renderPolicies);
+    window.onload = fetchSheetData;
+  </script>
+</body>
+</html>
