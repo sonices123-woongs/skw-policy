@@ -170,8 +170,8 @@
 
 
   <script>
-    // 새로 발급받으신 최신 GAS 웹앱 URL 반영 완료
-    const GAS_URL = 'https://script.google.com/macros/s/AKfycbyIVhjF2397d7fjZPvNga1jgj1T5bPdGybXbs5CCDpMhrmUhMTGqX2uCrKXBLQs4rhrqQ/exec';
+    // 새로 발급받으신 GAS 웹앱 URL 연결 완료
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbw7hGRWk56q0fl7C4df8uGV2DeElpToZyXocZvhceMlgwb00LCF81mVQVjN-R7XyObWAA/exec';
     let allPolicies = [];
     let allInventory = [];
     let currentType = '010';
@@ -186,12 +186,16 @@
       
       if (pageId === 'policy' && allPolicies.length === 0) {
         fetchPolicyData();
-      } else if (pageId === 'inventory' && allInventory.length === 0) {
-        loadInventoryFromCacheOrFetch();
+      } else if (pageId === 'inventory') {
+        if (allInventory.length === 0) {
+          fetchInventoryData(false);
+        } else {
+          renderInventory();
+        }
       }
     }
 
-    // --- 1. 정책 전용 초고속 불러오기 (0.2초) ---
+    // --- 1. 정책 데이터 불러오기 ---
     async function fetchPolicyData() {
       const syncIcon = document.getElementById('syncIcon');
       const loading = document.getElementById('loading');
@@ -218,24 +222,7 @@
       }
     }
 
-    // --- 2. 재고 로컬 캐시 활용 및 비동기 수신 ---
-    function loadInventoryFromCacheOrFetch() {
-      const cachedInv = localStorage.getItem('skt_inv_cache');
-      const cachedTime = localStorage.getItem('skt_inv_time');
-
-      if (cachedInv) {
-        allInventory = JSON.parse(cachedInv);
-        populateManagerFilter();
-        updateDynamicColorFilter();
-        renderInventory();
-        if (cachedTime) {
-          document.getElementById('invTimeInfo').innerText = '저장된 재고 (' + cachedTime + ')';
-        }
-      } else {
-        fetchInventoryData(false);
-      }
-    }
-
+    // --- 2. 재고 데이터 불러오기 (실시간 수신 및 렌더링) ---
     async function fetchInventoryData(forceRefresh) {
       const invSyncIcon = document.getElementById('invSyncIcon');
       const invLoading = document.getElementById('invLoading');
@@ -256,11 +243,18 @@
           updateDynamicColorFilter();
           renderInventory();
 
-          // 로컬 스토리지에 캐시 저장 (다음 접속 시 0.01초 로딩)
           const nowStr = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
-          localStorage.setItem('skt_inv_cache', JSON.stringify(allInventory));
-          localStorage.setItem('skt_inv_time', nowStr);
-          document.getElementById('invTimeInfo').innerText = '최신 동기화 (' + nowStr + ')';
+          document.getElementById('invTimeInfo').innerText = '동기화 완료 (' + nowStr + ')';
+        } else {
+          // 예외 상황 시 전체 요청 폴백
+          const fallbackRes = await fetch(GAS_URL, { redirect: 'follow' });
+          const fallbackData = await fallbackRes.json();
+          if (fallbackData && fallbackData.inventory) {
+            parseInventoryRows(fallbackData.inventory);
+            populateManagerFilter();
+            updateDynamicColorFilter();
+            renderInventory();
+          }
         }
       } catch (err) {
         console.error('Inventory error:', err);
