@@ -130,7 +130,7 @@
             <input type="text" id="invSearchInput" oninput="onInventorySearchChange()" placeholder="기종명/보유처 검색 (예: S94, 942, 서부센터)" class="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
           </div>
 
-          <!-- 2x2 깔끔한 드롭다운 필터 (담당, 지역, 용량, 색상) -->
+          <!-- 2x2 동적 연동 드롭다운 필터 (담당, 지역, 용량, 색상) -->
           <div class="grid grid-cols-2 gap-2 text-xs">
             <div>
               <select id="invManagerFilter" onchange="onInventorySearchChange()" class="w-full p-2 border rounded-lg bg-slate-50 text-slate-700 font-semibold focus:outline-none">
@@ -138,7 +138,7 @@
               </select>
             </div>
             <div>
-              <select id="invRegionFilter" onchange="onInventorySearchChange()" class="w-full p-2 border rounded-lg bg-slate-50 text-slate-700 font-semibold focus:outline-none">
+              <select id="invRegionFilter" onchange="onRegionFilterChange()" class="w-full p-2 border rounded-lg bg-slate-50 text-slate-700 font-semibold focus:outline-none">
                 <option value="ALL">지역 전체</option>
               </select>
             </div>
@@ -237,12 +237,12 @@
         const response = await fetch(GAS_URL + '?type=inventory', { redirect: 'follow' });
         const data = await response.json();
 
-        if (invSyncIcon) invSyncIcon.classList.remove('fa-spin');
+        if (syncIcon) invSyncIcon.classList.remove('fa-spin');
         if (invLoading) invLoading.classList.add('hidden');
 
         if (data && data.inventory && Array.isArray(data.inventory)) {
           parseInventoryRows(data.inventory);
-          populateManagerAndRegionFilters();
+          populateManagerFilter();
           updateDynamicFilters();
           renderInventory();
 
@@ -254,6 +254,36 @@
         if (invSyncIcon) invSyncIcon.classList.remove('fa-spin');
         if (invLoadingText) invLoadingText.innerText = '동기화 실패. 상단 새로고침을 눌러주세요.';
       }
+    }
+
+    // 날짜 스트링 정제 함수 (YYYY-MM-DD 형식 정돈 및 없으면 빈칸)
+    function formatDateString(val) {
+      if (!val) return '';
+      let str = String(val).trim();
+      if (!str || str === 'None' || str === 'null' || str === 'undefined' || str === '1899-12-30') return '';
+
+      // 2026-10-01 또는 2026/10/01 형태
+      const reMatch = str.match(/(\d{4})[\.\-\/](\d{1,2})[\.\-\/](\d{1,2})/);
+      if (reMatch) {
+        const y = reMatch[1];
+        const m = String(reMatch[2]).padStart(2, '0');
+        const d = String(reMatch[3]).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      }
+
+      // Sat Sep 19 2026 ... 형태
+      try {
+        const dObj = new Date(str);
+        if (!isNaN(dObj.getTime())) {
+          const y = dObj.getFullYear();
+          if (y < 1970) return ''; // 유효하지 않은 기본 날짜 제외
+          const m = String(dObj.getMonth() + 1).padStart(2, '0');
+          const d = String(dObj.getDate()).padStart(2, '0');
+          return `${y}-${m}-${d}`;
+        }
+      } catch(e) {}
+
+      return '';
     }
 
     function extractCapacity(modelName) {
@@ -279,8 +309,8 @@
         let manager = r[0] ? String(r[0]).trim() : '';
         let region = r[1] ? String(r[1]).trim() : ''; // B열: 지역
         let location = r[2] ? String(r[2]).trim() : '';
-        let moveDate = r[3] ? String(r[3]).trim() : '';
-        if (moveDate.includes('T')) moveDate = moveDate.split('T')[0];
+        let rawMoveDate = r[3] ? String(r[3]).trim() : '';
+        let cleanMoveDate = formatDateString(rawMoveDate);
 
         let modelName = r[4] ? String(r[4]).trim() : '';
         let color = r[5] ? String(r[5]).trim() : '';
@@ -294,7 +324,7 @@
           manager: manager,
           region: region,
           location: location,
-          moveDate: moveDate,
+          moveDate: cleanMoveDate,
           modelName: modelName,
           capacity: detectedCap,
           color: color,
@@ -309,35 +339,21 @@
       });
     }
 
-    function populateManagerAndRegionFilters() {
+    function populateManagerFilter() {
       const managerSelect = document.getElementById('invManagerFilter');
-      const regionSelect = document.getElementById('invRegionFilter');
+      if (!managerSelect) return;
 
       const managers = new Set();
-      const regions = new Set();
-
       allInventory.forEach(item => {
         if (item.manager && item.manager !== '레벨2조직명' && item.manager !== '영업담당' && item.manager !== 'None') {
           managers.add(item.manager);
         }
-        if (item.region && item.region !== '지역' && item.region !== 'None') {
-          regions.add(item.region);
-        }
       });
 
-      if (managerSelect) {
-        managerSelect.innerHTML = '<option value="ALL">담당 전체</option>';
-        Array.from(managers).sort().forEach(m => {
-          managerSelect.innerHTML += `<option value="${m}">${m}</option>`;
-        });
-      }
-
-      if (regionSelect) {
-        regionSelect.innerHTML = '<option value="ALL">지역 전체</option>';
-        Array.from(regions).sort().forEach(r => {
-          regionSelect.innerHTML += `<option value="${r}">${r}</option>`;
-        });
-      }
+      managerSelect.innerHTML = '<option value="ALL">담당 전체</option>';
+      Array.from(managers).sort().forEach(m => {
+        managerSelect.innerHTML += `<option value="${m}">${m}</option>`;
+      });
     }
 
     function isMatch(text, query) {
@@ -353,14 +369,51 @@
       renderInventory();
     }
 
+    function onRegionFilterChange() {
+      updateDynamicCapacityFilter();
+      updateDynamicColorFilter();
+      renderInventory();
+    }
+
     function onCapacityFilterChange() {
       updateDynamicColorFilter();
       renderInventory();
     }
 
     function updateDynamicFilters() {
+      updateDynamicRegionFilter();
       updateDynamicCapacityFilter();
       updateDynamicColorFilter();
+    }
+
+    // [개선] 기종 검색어 및 담당자에 맞춰 B열 지역(Region) 필터 동적 연동
+    function updateDynamicRegionFilter() {
+      const regionSelect = document.getElementById('invRegionFilter');
+      if (!regionSelect) return;
+
+      const rawSearch = document.getElementById('invSearchInput').value.trim();
+      const managerFilter = document.getElementById('invManagerFilter').value;
+      const prevSelectedRegion = regionSelect.value;
+
+      const availableRegions = new Set();
+      allInventory.forEach(item => {
+        if (rawSearch && !isMatch(item.modelName, rawSearch) && !isMatch(item.location, rawSearch)) return;
+        if (managerFilter !== 'ALL' && item.manager !== managerFilter) return;
+
+        if (item.region && item.region !== '지역' && item.region !== 'None') {
+          availableRegions.add(item.region);
+        }
+      });
+
+      regionSelect.innerHTML = '<option value="ALL">지역 전체</option>';
+      Array.from(availableRegions).sort().forEach(r => {
+        const isSelected = (r === prevSelectedRegion) ? 'selected' : '';
+        regionSelect.innerHTML += `<option value="${r}" ${isSelected}>${r}</option>`;
+      });
+
+      if (prevSelectedRegion !== 'ALL' && !availableRegions.has(prevSelectedRegion)) {
+        regionSelect.value = 'ALL';
+      }
     }
 
     function updateDynamicCapacityFilter() {
@@ -475,6 +528,8 @@
 
       let htmlBuffer = '';
       displayItems.forEach(item => {
+        const moveDateText = item.moveDate ? `입고일: ${item.moveDate}` : '';
+
         htmlBuffer += `
           <div class="bg-white p-3.5 rounded-xl shadow-sm border border-slate-200 space-y-2">
             <div class="flex justify-between items-start">
@@ -490,7 +545,7 @@
             <div class="flex justify-between items-end pt-1 border-t border-slate-100 text-xs text-slate-500">
               <div>
                 <div>보유처: <strong class="text-slate-800 font-semibold">${item.location}</strong></div>
-                <div class="text-[10px] text-slate-400">입고일: ${item.moveDate || '-'}</div>
+                ${moveDateText ? `<div class="text-[10px] text-slate-400">${moveDateText}</div>` : ''}
               </div>
               <div class="text-right text-[11px] text-slate-400">
                 <span>담당: <strong class="text-slate-600 font-medium">${item.manager}</strong></span>
