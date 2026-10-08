@@ -81,7 +81,7 @@
         <div class="bg-white p-3 rounded-xl shadow-md border border-slate-200 space-y-3">
           <div class="relative">
             <i class="fas fa-search absolute left-3 top-3 text-slate-400"></i>
-            <input type="text" id="searchInput" placeholder="기종명/모델코드 검색 (예: 플립, F761, S24)" class="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+            <input type="text" id="searchInput" placeholder="기종명/모델코드 검색 (예: 플립, F761, S24, 942)" class="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
           </div>
           
           <div class="flex bg-slate-100 p-1 rounded-lg">
@@ -126,26 +126,24 @@
       <!-- 재고 검색 & 용량/색상 필터 -->
       <div class="max-w-md mx-auto px-4 pt-3 pb-3 space-y-2">
         <div class="bg-white p-3 rounded-xl shadow-md border border-slate-200 space-y-3">
-          <!-- 대표모델명 검색 (N열) -->
+          <!-- 대표모델명 검색 (부분문자열/하이픈 구분 없이 지원) -->
           <div class="relative">
             <i class="fas fa-search absolute left-3 top-3 text-slate-400"></i>
-            <input type="text" id="invSearchInput" oninput="renderInventory()" placeholder="대표모델명 검색 (예: SM-S942N, IP18P)" class="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <input type="text" id="invSearchInput" oninput="renderInventory()" placeholder="기종명 검색 (예: S94, 942, IP18, 플립)" class="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
           </div>
 
-          <!-- 필터 옵션 (용량 & 색상) -->
+          <!-- 깔끔해진 용량 & 색상 필터 -->
           <div class="grid grid-cols-2 gap-2 text-xs">
             <div>
-              <label class="block text-slate-500 font-bold mb-1">용량 필터</label>
               <select id="invCapacityFilter" onchange="renderInventory()" class="w-full p-2 border rounded-lg bg-slate-50 text-slate-700 font-semibold focus:outline-none">
                 <option value="ALL">용량 전체</option>
-                <option value="BASIC">기본 (용량미표기)</option>
+                <option value="BASIC">기본 용량</option>
                 <option value="256G">256G</option>
                 <option value="512G">512G</option>
                 <option value="OTHER">그 외 용량</option>
               </select>
             </div>
             <div>
-              <label class="block text-slate-500 font-bold mb-1">색상 필터 (R열)</label>
               <select id="invColorFilter" onchange="renderInventory()" class="w-full p-2 border rounded-lg bg-slate-50 text-slate-700 font-semibold focus:outline-none">
                 <option value="ALL">색상 전체</option>
               </select>
@@ -208,7 +206,6 @@
       const loading = document.getElementById('loading');
       if (loading) loading.style.display = 'none';
 
-      // GAS 응답 파싱
       if (data && data.policies) {
         parseGasRows(data.policies);
         renderPolicies();
@@ -220,7 +217,7 @@
       }
     };
 
-    // --- 재고 데이터 파싱 (D열: 담당[3], E열: 지역[4], L열: 보유처[11], N열: 대표모델[13], R열: 색상[17]) ---
+    // --- 재고 데이터 파싱 ---
     function parseInventoryRows(rows) {
       allInventory = [];
       if (!rows || rows.length < 2) return;
@@ -229,8 +226,8 @@
         const r = rows[i];
         if (!r || r.length < 14) continue;
 
-        let manager = r[3] ? String(r[3]).trim() : ''; // D열: 담당 (레벨2조직명)
-        let region = r[4] ? String(r[4]).trim() : '';  // E열: 지역 (레벨3조직명)
+        let manager = r[3] ? String(r[3]).trim() : ''; // D열: 담당
+        let region = r[4] ? String(r[4]).trim() : '';  // E열: 지역
         let location = r[11] ? String(r[11]).trim() : ''; // L열: 보유처
         let modelName = r[13] ? String(r[13]).trim() : ''; // N열: 대표모델명
         let color = r[17] ? String(r[17]).trim() : ''; // R열: 색상
@@ -246,7 +243,7 @@
         });
       }
 
-      // 정렬 순서: 담당(D열) -> 지역(E열) -> 보유처(L열)
+      // 정렬: 담당(D열) -> 지역(E열) -> 보유처(L열)
       allInventory.sort((a, b) => {
         if (a.manager !== b.manager) return a.manager.localeCompare(b.manager, 'ko');
         if (a.region !== b.region) return a.region.localeCompare(b.region, 'ko');
@@ -254,7 +251,6 @@
       });
     }
 
-    // 색상 옵션 목록 생성
     function populateColorFilter() {
       const colorSelect = document.getElementById('invColorFilter');
       if (!colorSelect) return;
@@ -270,31 +266,44 @@
       });
     }
 
+    // 문자열 유연 비교 (하이픈/공백 제거 및 대소문자 무시)
+    function cleanStr(str) {
+      return String(str || '').toLowerCase().replace(/[^a-z0-9가-힣]/g, '');
+    }
+
     // --- 재고 목록 렌더링 ---
     function renderInventory() {
-      const search = document.getElementById('invSearchInput').value.toLowerCase().replace(/\s+/g, '');
+      const rawSearch = document.getElementById('invSearchInput').value.trim();
+      const searchClean = cleanStr(rawSearch);
       const capFilter = document.getElementById('invCapacityFilter').value;
       const colorFilter = document.getElementById('invColorFilter').value;
       const list = document.getElementById('inventoryList');
       if (!list) return;
 
       const filtered = allInventory.filter(item => {
-        // 1. 대표모델명 검색
-        const model = item.modelName.toLowerCase().replace(/\s+/g, '');
-        if (search && !model.includes(search)) return false;
+        const modelClean = cleanStr(item.modelName);
 
-        // 2. 용량 필터링 (N열 문자열 검사)
-        if (capFilter === 'BASIC') {
-          if (model.includes('256') || model.includes('512') || model.includes('1t') || model.includes('128')) return false;
-        } else if (capFilter === '256G') {
-          if (!model.includes('256')) return false;
-        } else if (capFilter === '512G') {
-          if (!model.includes('512')) return false;
-        } else if (capFilter === 'OTHER') {
-          if (model.includes('256') || model.includes('512')) return false;
+        // 1. 유연한 기종명 검색 (S94, 942, S942N 등 일부만 입력해도 다 검색됨)
+        if (searchClean && !modelClean.includes(searchClean)) {
+          // 기종 원본 문자로도 한번 더 확인
+          if (!item.modelName.toLowerCase().includes(rawSearch.toLowerCase())) {
+            return false;
+          }
         }
 
-        // 3. 색상 필터링 (R열 검사)
+        // 2. 용량 필터링
+        const modelUpper = item.modelName.toUpperCase();
+        if (capFilter === 'BASIC') {
+          if (modelUpper.includes('256') || modelUpper.includes('512') || modelUpper.includes('1T') || modelUpper.includes('128')) return false;
+        } else if (capFilter === '256G') {
+          if (!modelUpper.includes('256')) return false;
+        } else if (capFilter === '512G') {
+          if (!modelUpper.includes('512')) return false;
+        } else if (capFilter === 'OTHER') {
+          if (modelUpper.includes('256') || modelUpper.includes('512')) return false;
+        }
+
+        // 3. 색상 필터링
         if (colorFilter !== 'ALL' && item.color !== colorFilter) return false;
 
         return true;
@@ -330,7 +339,7 @@
       });
     }
 
-    // --- 기존 정책 데이터 처리 파트 ---
+    // --- 정책 데이터 처리 ---
     function getCategoryData(planCell, commonCell, selectCell, defaultPlan) {
       let plan = defaultPlan;
       if (planCell !== undefined && planCell !== null && String(planCell).trim() !== '' && String(planCell).trim() !== 'None') {
@@ -389,15 +398,23 @@
 
     function renderPolicies() {
       const searchInput = document.getElementById('searchInput');
-      const search = searchInput ? searchInput.value.toLowerCase().replace(/\s+/g, '') : '';
+      const rawSearch = searchInput ? searchInput.value.trim() : '';
+      const searchClean = cleanStr(rawSearch);
       const list = document.getElementById('policyList');
       if (!list) return;
       list.innerHTML = '';
 
       const filtered = allPolicies.filter(p => {
-        const pet = p.petName.toLowerCase().replace(/\s+/g, '');
-        const code = p.code.toLowerCase().replace(/\s+/g, '');
-        return pet.includes(search) || code.includes(search);
+        const petClean = cleanStr(p.petName);
+        const codeClean = cleanStr(p.code);
+
+        if (searchClean && !petClean.includes(searchClean) && !codeClean.includes(searchClean)) {
+          if (!p.petName.toLowerCase().includes(rawSearch.toLowerCase()) && 
+              !p.code.toLowerCase().includes(rawSearch.toLowerCase())) {
+            return false;
+          }
+        }
+        return true;
       });
 
       if (filtered.length === 0) {
