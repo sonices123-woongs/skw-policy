@@ -96,7 +96,7 @@
     <main class="max-w-md mx-auto px-4 pt-2 space-y-4">
       <div id="loading" class="text-center py-8 text-slate-500 text-sm">
         <i class="fas fa-spinner fa-spin text-2xl text-red-600 mb-2"></i>
-        <p>최신 단가 및 재고 불러오는 중...</p>
+        <p id="loadingMsg">최신 단가 및 재고 불러오는 중...</p>
       </div>
       <div id="policyList" class="space-y-3"></div>
     </main>
@@ -165,11 +165,12 @@
 
 
   <script>
-    // 새로 발급받으신 최신 GAS 웹앱 URL 반영 완료!
-    const GAS_URL = 'https://script.google.com/macros/s/AKfycbyRjs_mRntKXFEW5gZY68L_Y7FTpepu9UGENZykysE2uH7a4GjtZ7UqFIq6Avck4ZeX6A/exec';
+    // 새로 발급받으신 초고속 캐시 GAS 웹앱 URL 반영 완료
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbziv76w0GRFdDPVMPkmsgC0aV6FdWD6ZTFEyBpxsqUni9sIFCM_HUW1ds-k7iUf76KqwQ/exec';
     let allPolicies = [];
     let allInventory = [];
     let currentType = '010';
+    let fetchTimer = null;
 
     function showPage(pageId) {
       document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
@@ -186,12 +187,22 @@
     function fetchSheetData() {
       const syncIcon = document.getElementById('syncIcon');
       const invSyncIcon = document.getElementById('invSyncIcon');
+      const loading = document.getElementById('loading');
       
       if (syncIcon) syncIcon.classList.add('fa-spin');
       if (invSyncIcon) invSyncIcon.classList.add('fa-spin');
+      if (loading) loading.style.display = 'block';
 
       const oldScript = document.getElementById('gas-jsonp-script');
       if (oldScript) oldScript.remove();
+
+      if (fetchTimer) clearTimeout(fetchTimer);
+      fetchTimer = setTimeout(() => {
+        if (syncIcon) syncIcon.classList.remove('fa-spin');
+        if (invSyncIcon) invSyncIcon.classList.remove('fa-spin');
+        const loadingMsg = document.getElementById('loadingMsg');
+        if (loadingMsg) loadingMsg.innerText = '동기화 응답 시간이 지연되고 있습니다. 상단 동기화 버튼을 다시 눌러주세요.';
+      }, 8000);
 
       const script = document.createElement('script');
       script.id = 'gas-jsonp-script';
@@ -200,6 +211,8 @@
     }
 
     window.handleGasResponse = function(data) {
+      if (fetchTimer) clearTimeout(fetchTimer);
+
       const syncIcon = document.getElementById('syncIcon');
       const invSyncIcon = document.getElementById('invSyncIcon');
       if (syncIcon) syncIcon.classList.remove('fa-spin');
@@ -222,7 +235,6 @@
       }
     };
 
-    // --- 재고 데이터 파싱 (A~G열 구조) ---
     function parseInventoryRows(rows) {
       allInventory = [];
       if (!rows || rows.length === 0) return;
@@ -231,15 +243,15 @@
         const r = rows[i];
         if (!r || !Array.isArray(r)) continue;
 
-        let manager = r[0] ? String(r[0]).trim() : '';  // A: 담당
-        let region = r[1] ? String(r[1]).trim() : '';   // B: 지역
-        let location = r[2] ? String(r[2]).trim() : ''; // C: 보유처
-        let moveDate = r[3] ? String(r[3]).trim() : ''; // D: 입고일자
+        let manager = r[0] ? String(r[0]).trim() : '';
+        let region = r[1] ? String(r[1]).trim() : '';
+        let location = r[2] ? String(r[2]).trim() : '';
+        let moveDate = r[3] ? String(r[3]).trim() : '';
         if (moveDate.includes('T')) moveDate = moveDate.split('T')[0];
 
-        let modelName = r[4] ? String(r[4]).trim() : '';// E: 대표모델명
-        let color = r[5] ? String(r[5]).trim() : '';    // F: 색상
-        let serialNo = r[6] ? String(r[6]).trim() : ''; // G: 일련번호
+        let modelName = r[4] ? String(r[4]).trim() : '';
+        let color = r[5] ? String(r[5]).trim() : '';
+        let serialNo = r[6] ? String(r[6]).trim() : '';
 
         if (!modelName || modelName === '대표모델명' || modelName === 'None') continue;
 
@@ -397,7 +409,6 @@
       });
     }
 
-    // --- 정책 파싱 ---
     function getCategoryData(planCell, commonCell, selectCell, defaultPlan) {
       let plan = defaultPlan;
       if (planCell !== undefined && planCell !== null && String(planCell).trim() !== '' && String(planCell).trim() !== 'None') {
