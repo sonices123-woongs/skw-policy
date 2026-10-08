@@ -3,86 +3,195 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SKT 대리점 오늘의 정책표</title>
+  <title>SKT 더블유대리점 스마트 포털</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <style>
     @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
     body { font-family: 'Pretendard', sans-serif; background-color: #f1f5f9; }
+    .page-view { display: none; }
+    .page-view.active { display: block; }
   </style>
 </head>
 <body class="pb-12">
-  <!-- 상단 고정 영역 (헤더 + 검색창 + 탭을 하나로 고정) -->
-  <div class="sticky top-0 z-50 bg-slate-100 shadow-sm">
-    <header class="bg-red-600 text-white p-4">
-      <div class="max-w-md mx-auto flex justify-between items-center">
-        <div>
-          <span class="text-xs bg-red-800 px-2 py-0.5 rounded font-bold">SKT 더블유대리점</span>
-          <h1 class="text-xl font-bold mt-1">오늘의 정책</h1>
-        </div>
-        <button onclick="fetchSheetData()" class="bg-red-700 hover:bg-red-800 text-white p-2 rounded-full text-xs flex items-center gap-1 transition">
-          <i class="fas fa-sync-alt" id="syncIcon"></i> 동기화
-        </button>
+
+  <!-- ================= 1. 홈 메인 화면 ================= -->
+  <div id="page-home" class="page-view active min-h-screen">
+    <header class="bg-red-600 text-white p-6 shadow-md rounded-b-2xl">
+      <div class="max-w-md mx-auto text-center">
+        <span class="text-xs bg-red-800 px-2.5 py-1 rounded-full font-bold tracking-wide">SKT 더블유대리점</span>
+        <h1 class="text-2xl font-extrabold mt-2">업무 포털 시스템</h1>
+        <p class="text-xs text-red-100 mt-1">원하시는 메뉴를 선택해 주세요</p>
       </div>
     </header>
 
-    <!-- 검색 및 가입유형 선택 -->
-    <div class="max-w-md mx-auto px-4 pt-3 pb-3">
-      <div class="bg-white p-3 rounded-xl shadow-md border border-slate-200 space-y-3">
-        <div class="relative">
-          <i class="fas fa-search absolute left-3 top-3 text-slate-400"></i>
-          <input type="text" id="searchInput" placeholder="기종명/모델코드 검색 (예: 플립, F761, S24)" class="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
-        </div>
+    <main class="max-w-md mx-auto p-4 mt-4 space-y-4">
+      <div class="grid grid-cols-1 gap-4">
         
-        <!-- 010 / MNP / 기변 탭 -->
-        <div class="flex bg-slate-100 p-1 rounded-lg">
-          <button onclick="setType('010')" id="tab-010" class="type-btn active flex-1 py-1.5 text-xs font-bold rounded-md bg-white text-red-600 shadow-sm">010 신규</button>
-          <button onclick="setType('MNP')" id="tab-MNP" class="type-btn flex-1 py-1.5 text-xs font-bold rounded-md text-slate-500">MNP 번이</button>
-          <button onclick="setType('기변')" id="tab-기변" class="type-btn flex-1 py-1.5 text-xs font-bold rounded-md text-slate-500">기기변경</button>
+        <!-- 오늘의 정책 -->
+        <button onclick="showPage('policy')" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-left hover:shadow-md transition flex items-center justify-between group">
+          <div class="space-y-1">
+            <span class="text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded">실시간 단가</span>
+            <h2 class="text-xl font-extrabold text-slate-800 group-hover:text-red-600 transition">오늘의 정책</h2>
+            <p class="text-xs text-slate-400">010, MNP, 기변 공시지원금 및 인센티브</p>
+          </div>
+          <div class="w-14 h-14 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center text-2xl font-bold shrink-0">
+            <i class="fas fa-file-invoice-dollar"></i>
+          </div>
+        </button>
+
+        <!-- 재고 조회 -->
+        <button onclick="showPage('inventory')" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-left hover:shadow-md transition flex items-center justify-between group">
+          <div class="space-y-1">
+            <span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">매장 재고</span>
+            <h2 class="text-xl font-extrabold text-slate-800 group-hover:text-blue-600 transition">재고 조회</h2>
+            <p class="text-xs text-slate-400">지점/매장별 단말기 실시간 재고 현황</p>
+          </div>
+          <div class="w-14 h-14 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center text-2xl font-bold shrink-0">
+            <i class="fas fa-boxes-stacked"></i>
+          </div>
+        </button>
+
+      </div>
+    </main>
+  </div>
+
+
+  <!-- ================= 2. 오늘의 정책 화면 ================= -->
+  <div id="page-policy" class="page-view">
+    <div class="sticky top-0 z-50 bg-slate-100 shadow-sm">
+      <header class="bg-red-600 text-white p-4">
+        <div class="max-w-md mx-auto flex justify-between items-center">
+          <div class="flex items-center gap-2">
+            <button onclick="showPage('home')" class="bg-red-700 hover:bg-red-800 text-white px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition">
+              <i class="fas fa-home"></i> 홈
+            </button>
+            <div>
+              <span class="text-[10px] bg-red-800 px-1.5 py-0.5 rounded font-bold">SKT 더블유대리점</span>
+              <h1 class="text-lg font-bold">오늘의 정책</h1>
+            </div>
+          </div>
+          <button onclick="fetchSheetData()" class="bg-red-700 hover:bg-red-800 text-white p-2 rounded-full text-xs flex items-center gap-1 transition">
+            <i class="fas fa-sync-alt" id="syncIcon"></i> 동기화
+          </button>
+        </div>
+      </header>
+
+      <div class="max-w-md mx-auto px-4 pt-3 pb-3">
+        <div class="bg-white p-3 rounded-xl shadow-md border border-slate-200 space-y-3">
+          <div class="relative">
+            <i class="fas fa-search absolute left-3 top-3 text-slate-400"></i>
+            <input type="text" id="searchInput" placeholder="기종명/모델코드 검색 (예: 플립, F761, S24)" class="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+          </div>
+          
+          <div class="flex bg-slate-100 p-1 rounded-lg">
+            <button onclick="setType('010')" id="tab-010" class="type-btn active flex-1 py-1.5 text-xs font-bold rounded-md bg-white text-red-600 shadow-sm">010 신규</button>
+            <button onclick="setType('MNP')" id="tab-MNP" class="type-btn flex-1 py-1.5 text-xs font-bold rounded-md text-slate-500">MNP 번이</button>
+            <button onclick="setType('기변')" id="tab-기변" class="type-btn flex-1 py-1.5 text-xs font-bold rounded-md text-slate-500">기기변경</button>
+          </div>
         </div>
       </div>
     </div>
+
+    <main class="max-w-md mx-auto px-4 pt-2 space-y-4">
+      <div id="loading" class="text-center py-8 text-slate-500 text-sm">
+        <i class="fas fa-spinner fa-spin text-2xl text-red-600 mb-2"></i>
+        <p>최신 단가 불러오는 중...</p>
+      </div>
+      <div id="policyList" class="space-y-3"></div>
+    </main>
   </div>
 
-  <main class="max-w-md mx-auto px-4 pt-2 space-y-4">
-    <!-- 로딩 안내 -->
-    <div id="loading" class="text-center py-8 text-slate-500 text-sm">
-      <i class="fas fa-spinner fa-spin text-2xl text-red-600 mb-2"></i>
-      <p id="loadingText">구글 시트에서 최신 단가 불러오는 중...</p>
+
+  <!-- ================= 3. 재고 조회 화면 ================= -->
+  <div id="page-inventory" class="page-view min-h-screen">
+    <div class="sticky top-0 z-50 bg-slate-100 shadow-sm">
+      <header class="bg-blue-600 text-white p-4">
+        <div class="max-w-md mx-auto flex justify-between items-center">
+          <div class="flex items-center gap-2">
+            <button onclick="showPage('home')" class="bg-blue-700 hover:bg-blue-800 text-white px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition">
+              <i class="fas fa-home"></i> 홈
+            </button>
+            <div>
+              <span class="text-[10px] bg-blue-800 px-1.5 py-0.5 rounded font-bold">SKT 더블유대리점</span>
+              <h1 class="text-lg font-bold">재고 조회</h1>
+            </div>
+          </div>
+          <button onclick="fetchSheetData()" class="bg-blue-700 hover:bg-blue-800 text-white p-2 rounded-full text-xs flex items-center gap-1 transition">
+            <i class="fas fa-sync-alt" id="invSyncIcon"></i> 동기화
+          </button>
+        </div>
+      </header>
+
+      <!-- 재고 검색 & 용량/색상 필터 -->
+      <div class="max-w-md mx-auto px-4 pt-3 pb-3 space-y-2">
+        <div class="bg-white p-3 rounded-xl shadow-md border border-slate-200 space-y-3">
+          <!-- 대표모델명 검색 (N열) -->
+          <div class="relative">
+            <i class="fas fa-search absolute left-3 top-3 text-slate-400"></i>
+            <input type="text" id="invSearchInput" oninput="renderInventory()" placeholder="대표모델명 검색 (예: SM-S942N, IP18P)" class="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+
+          <!-- 필터 옵션 (용량 & 색상) -->
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div>
+              <label class="block text-slate-500 font-bold mb-1">용량 필터</label>
+              <select id="invCapacityFilter" onchange="renderInventory()" class="w-full p-2 border rounded-lg bg-slate-50 text-slate-700 font-semibold focus:outline-none">
+                <option value="ALL">용량 전체</option>
+                <option value="BASIC">기본 (용량미표기)</option>
+                <option value="256G">256G</option>
+                <option value="512G">512G</option>
+                <option value="OTHER">그 외 용량</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-slate-500 font-bold mb-1">색상 필터 (R열)</label>
+              <select id="invColorFilter" onchange="renderInventory()" class="w-full p-2 border rounded-lg bg-slate-50 text-slate-700 font-semibold focus:outline-none">
+                <option value="ALL">색상 전체</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- 목록 -->
-    <div id="policyList" class="space-y-3"></div>
-  </main>
+    <main class="max-w-md mx-auto px-4 pt-2 space-y-4">
+      <div id="invSummary" class="text-xs text-slate-500 font-bold px-1 flex justify-between">
+        <span>조회 결과: <strong id="invCount" class="text-blue-600">0</strong>건</span>
+      </div>
+      <div id="inventoryList" class="space-y-3"></div>
+    </main>
+  </div>
+
 
   <script>
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbxTMvbf38L7yqbcXh-m9CVZ4UTA6a1AwGigdd3UrEaH935ydCCe_mx69vBiM2vu8a3sKw/exec';
     let allPolicies = [];
+    let allInventory = [];
     let currentType = '010';
     let timeoutTimer = null;
 
+    function showPage(pageId) {
+      document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
+      const target = document.getElementById(`page-${pageId}`);
+      if (target) {
+        target.classList.add('active');
+        window.scrollTo(0, 0);
+      }
+      if (allPolicies.length === 0 && allInventory.length === 0) {
+        fetchSheetData();
+      }
+    }
+
     function fetchSheetData() {
       const syncIcon = document.getElementById('syncIcon');
-      const loading = document.getElementById('loading');
+      const invSyncIcon = document.getElementById('invSyncIcon');
       
-      syncIcon.classList.add('fa-spin');
-      loading.style.display = 'block';
+      if (syncIcon) syncIcon.classList.add('fa-spin');
+      if (invSyncIcon) invSyncIcon.classList.add('fa-spin');
 
       const oldScript = document.getElementById('gas-jsonp-script');
       if (oldScript) oldScript.remove();
-
-      if (timeoutTimer) clearTimeout(timeoutTimer);
-      timeoutTimer = setTimeout(() => {
-        syncIcon.classList.remove('fa-spin');
-        loading.style.display = 'none';
-        if (allPolicies.length === 0) {
-          document.getElementById('policyList').innerHTML = `
-            <div class="bg-red-50 p-4 rounded-xl text-center text-xs text-red-600 border border-red-200">
-              <strong>데이터 동기화 실패</strong><br><br>
-              스마트폰 인터넷 상태 확인 후 상단 [🔄 동기화] 버튼을 눌러주세요.
-            </div>`;
-        }
-      }, 10000);
 
       const script = document.createElement('script');
       script.id = 'gas-jsonp-script';
@@ -91,34 +200,146 @@
     }
 
     window.handleGasResponse = function(data) {
-      if (timeoutTimer) clearTimeout(timeoutTimer);
       const syncIcon = document.getElementById('syncIcon');
+      const invSyncIcon = document.getElementById('invSyncIcon');
+      if (syncIcon) syncIcon.classList.remove('fa-spin');
+      if (invSyncIcon) invSyncIcon.classList.remove('fa-spin');
+
       const loading = document.getElementById('loading');
+      if (loading) loading.style.display = 'none';
 
-      syncIcon.classList.remove('fa-spin');
-      loading.style.display = 'none';
-
-      if (Array.isArray(data) && data.length > 0) {
-        parseGasRows(data);
+      // GAS 응답 파싱
+      if (data && data.policies) {
+        parseGasRows(data.policies);
         renderPolicies();
-      } else {
-        document.getElementById('policyList').innerHTML = `
-          <div class="text-center py-8 text-slate-400 text-sm">불러올 정책 데이터가 없습니다.</div>`;
+      }
+      if (data && data.inventory) {
+        parseInventoryRows(data.inventory);
+        populateColorFilter();
+        renderInventory();
       }
     };
 
+    // --- 재고 데이터 파싱 (D열: 담당[3], E열: 지역[4], L열: 보유처[11], N열: 대표모델[13], R열: 색상[17]) ---
+    function parseInventoryRows(rows) {
+      allInventory = [];
+      if (!rows || rows.length < 2) return;
+
+      for (let i = 1; i < rows.length; i++) {
+        const r = rows[i];
+        if (!r || r.length < 14) continue;
+
+        let manager = r[3] ? String(r[3]).trim() : ''; // D열: 담당 (레벨2조직명)
+        let region = r[4] ? String(r[4]).trim() : '';  // E열: 지역 (레벨3조직명)
+        let location = r[11] ? String(r[11]).trim() : ''; // L열: 보유처
+        let modelName = r[13] ? String(r[13]).trim() : ''; // N열: 대표모델명
+        let color = r[17] ? String(r[17]).trim() : ''; // R열: 색상
+
+        if (!modelName || modelName === '대표모델명') continue;
+
+        allInventory.push({
+          manager: manager,
+          region: region,
+          location: location,
+          modelName: modelName,
+          color: color
+        });
+      }
+
+      // 정렬 순서: 담당(D열) -> 지역(E열) -> 보유처(L열)
+      allInventory.sort((a, b) => {
+        if (a.manager !== b.manager) return a.manager.localeCompare(b.manager, 'ko');
+        if (a.region !== b.region) return a.region.localeCompare(b.region, 'ko');
+        return a.location.localeCompare(b.location, 'ko');
+      });
+    }
+
+    // 색상 옵션 목록 생성
+    function populateColorFilter() {
+      const colorSelect = document.getElementById('invColorFilter');
+      if (!colorSelect) return;
+
+      const colors = new Set();
+      allInventory.forEach(item => {
+        if (item.color && item.color !== '색상') colors.add(item.color);
+      });
+
+      colorSelect.innerHTML = '<option value="ALL">색상 전체</option>';
+      Array.from(colors).sort().forEach(c => {
+        colorSelect.innerHTML += `<option value="${c}">${c}</option>`;
+      });
+    }
+
+    // --- 재고 목록 렌더링 ---
+    function renderInventory() {
+      const search = document.getElementById('invSearchInput').value.toLowerCase().replace(/\s+/g, '');
+      const capFilter = document.getElementById('invCapacityFilter').value;
+      const colorFilter = document.getElementById('invColorFilter').value;
+      const list = document.getElementById('inventoryList');
+      if (!list) return;
+
+      const filtered = allInventory.filter(item => {
+        // 1. 대표모델명 검색
+        const model = item.modelName.toLowerCase().replace(/\s+/g, '');
+        if (search && !model.includes(search)) return false;
+
+        // 2. 용량 필터링 (N열 문자열 검사)
+        if (capFilter === 'BASIC') {
+          if (model.includes('256') || model.includes('512') || model.includes('1t') || model.includes('128')) return false;
+        } else if (capFilter === '256G') {
+          if (!model.includes('256')) return false;
+        } else if (capFilter === '512G') {
+          if (!model.includes('512')) return false;
+        } else if (capFilter === 'OTHER') {
+          if (model.includes('256') || model.includes('512')) return false;
+        }
+
+        // 3. 색상 필터링 (R열 검사)
+        if (colorFilter !== 'ALL' && item.color !== colorFilter) return false;
+
+        return true;
+      });
+
+      document.getElementById('invCount').innerText = filtered.length;
+      list.innerHTML = '';
+
+      if (filtered.length === 0) {
+        list.innerHTML = `<div class="text-center py-8 text-slate-400 text-sm">조회된 재고가 없습니다.</div>`;
+        return;
+      }
+
+      filtered.forEach(item => {
+        const card = `
+          <div class="bg-white p-3.5 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center">
+            <div class="space-y-1">
+              <div class="flex items-center gap-1.5">
+                <span class="text-[11px] font-bold bg-blue-50 text-blue-700 px-2 py-0.5 rounded">${item.modelName}</span>
+                <span class="text-[11px] font-semibold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">${item.color || '기본색상'}</span>
+              </div>
+              <div class="text-xs text-slate-500 font-medium">
+                보유처: <strong class="text-slate-800">${item.location}</strong>
+              </div>
+            </div>
+            <div class="text-right text-[11px] text-slate-400 space-y-0.5">
+              <div>담당: <span class="font-semibold text-slate-600">${item.manager}</span></div>
+              <div>지역: <span class="font-semibold text-slate-600">${item.region}</span></div>
+            </div>
+          </div>
+        `;
+        list.innerHTML += card;
+      });
+    }
+
+    // --- 기존 정책 데이터 처리 파트 ---
     function getCategoryData(planCell, commonCell, selectCell, defaultPlan) {
       let plan = defaultPlan;
       if (planCell !== undefined && planCell !== null && String(planCell).trim() !== '' && String(planCell).trim() !== 'None') {
         plan = String(planCell).trim();
       }
-
       let common = (commonCell !== undefined && commonCell !== null && String(commonCell).trim() !== '' && String(commonCell).trim() !== 'None') 
                    ? String(commonCell).trim() : '0';
-
       let select = (selectCell !== undefined && selectCell !== null && String(selectCell).trim() !== '' && String(selectCell).trim() !== 'None') 
                    ? String(selectCell).trim() : common;
-
       return { plan, common, select };
     }
 
@@ -134,49 +355,34 @@
         if (!r || !Array.isArray(r) || r.length < 2) continue;
 
         let rawPet = r[0] ? String(r[0]).trim() : '';
-        if (rawPet && rawPet !== 'None' && rawPet !== '모 델' && rawPet !== '모 델 명') {
-          lastModel = rawPet;
-        }
+        if (rawPet && rawPet !== 'None' && rawPet !== '모 델' && rawPet !== '모 델 명') lastModel = rawPet;
         let modelPet = lastModel || '기본모델';
 
         let modelCode = r[1] ? String(r[1]).trim() : '';
-        if (!modelCode || modelCode === '모 델 명' || modelCode === '모델명' || modelCode === 'None' || modelCode === '출고가') {
-          continue;
-        }
+        if (!modelCode || modelCode === '모 델 명' || modelCode === '모델명' || modelCode === 'None' || modelCode === '출고가') continue;
 
         let price = (r[2] !== undefined && r[2] !== null) ? String(r[2]).replace(/,/g, '') : '0';
         let sub010 = (r[3] !== undefined && r[3] !== null) ? String(r[3]).replace(/,/g, '') : '0';
         let subChange = (r[4] !== undefined && r[4] !== null) ? String(r[4]).replace(/,/g, '') : '0';
 
-        // 010 신규 (F열: 요금제[5], G열: 공통[6], H열: 선약[7])
         const g010 = getCategoryData(r[5], r[6], r[7], lastPlan010);
         if (g010.plan) lastPlan010 = g010.plan;
 
-        // MNP 번이 (I열: 요금제[8], J열: 공통[9], K열: 선약[10])
         const gMNP = getCategoryData(r[8], r[9], r[10], lastPlanMNP);
         if (gMNP.plan) lastPlanMNP = gMNP.plan;
 
-        // 기기변경 (L열: 요금제[11], M열: 공통[12], N열: 선약[13])
         const gChange = getCategoryData(r[11], r[12], r[13], lastPlanChange);
         if (gChange.plan) lastPlanChange = gChange.plan;
 
-        // O열(14): 추지 추가정책금, P열(15): 010/MNP 추지기준, Q열(16): 기변 추지기준
         let addPolicyVal = (r[14] !== undefined && r[14] !== null) ? String(r[14]).trim() : '';
         let target010MNP = (r[15] !== undefined && r[15] !== null) ? String(r[15]).trim() : '';
         let targetChange = (r[16] !== undefined && r[16] !== null) ? String(r[16]).trim() : '';
 
         allPolicies.push({
-          petName: modelPet,
-          code: modelCode,
-          price: Number(price) || 0,
-          sub010: Number(sub010) || 0,
-          subChange: Number(subChange) || 0,
-          '010': g010,
-          'MNP': gMNP,
-          '기변': gChange,
-          addPolicyVal: addPolicyVal,
-          target010MNP: target010MNP,
-          targetChange: targetChange
+          petName: modelPet, code: modelCode, price: Number(price) || 0,
+          sub010: Number(sub010) || 0, subChange: Number(subChange) || 0,
+          '010': g010, 'MNP': gMNP, '기변': gChange,
+          addPolicyVal: addPolicyVal, target010MNP: target010MNP, targetChange: targetChange
         });
       }
     }
@@ -185,6 +391,7 @@
       const searchInput = document.getElementById('searchInput');
       const search = searchInput ? searchInput.value.toLowerCase().replace(/\s+/g, '') : '';
       const list = document.getElementById('policyList');
+      if (!list) return;
       list.innerHTML = '';
 
       const filtered = allPolicies.filter(p => {
@@ -201,7 +408,6 @@
       filtered.forEach(p => {
         const typeData = p[currentType];
         const subAmount = (currentType === '기변') ? p.subChange : p.sub010;
-
         const targetValue = (currentType === '기변') ? p.targetChange : p.target010MNP;
         
         let chujiBadge = '';
