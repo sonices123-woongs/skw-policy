@@ -71,7 +71,7 @@
               <h1 class="text-lg font-bold">오늘의 정책</h1>
             </div>
           </div>
-          <button onclick="fetchPolicyData(true)" class="bg-red-700 hover:bg-red-800 text-white p-2 rounded-full text-xs flex items-center gap-1 transition">
+          <button onclick="fetchPolicyData()" class="bg-red-700 hover:bg-red-800 text-white p-2 rounded-full text-xs flex items-center gap-1 transition">
             <i class="fas fa-sync-alt" id="syncIcon"></i> 동기화
           </button>
         </div>
@@ -94,7 +94,7 @@
     </div>
 
     <main class="max-w-md mx-auto px-4 pt-2 space-y-4">
-      <div id="loading" class="text-center py-8 text-slate-500 text-sm hidden">
+      <div id="loading" class="text-center py-8 text-slate-500 text-sm">
         <i class="fas fa-spinner fa-spin text-2xl text-red-600 mb-2"></i>
         <p id="loadingMsg">실시간 정책 로딩 중...</p>
       </div>
@@ -117,7 +117,7 @@
               <h1 class="text-lg font-bold">재고 조회</h1>
             </div>
           </div>
-          <button onclick="fetchInventoryData(true)" class="bg-blue-700 hover:bg-blue-800 text-white p-2 rounded-full text-xs flex items-center gap-1 transition">
+          <button onclick="fetchInventoryData()" class="bg-blue-700 hover:bg-blue-800 text-white p-2 rounded-full text-xs flex items-center gap-1 transition">
             <i class="fas fa-sync-alt" id="invSyncIcon"></i> 새로고침
           </button>
         </div>
@@ -130,7 +130,7 @@
             <input type="text" id="invSearchInput" oninput="onInventorySearchChange()" placeholder="기종명/보유처 검색 (예: S94, 942, 서부센터)" class="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
           </div>
 
-          <!-- 2x2 동적 연동 드롭다운 필터 -->
+          <!-- 2x2 깔끔한 필터 (담당, 지역, 용량, 색상) -->
           <div class="grid grid-cols-2 gap-2 text-xs">
             <div>
               <select id="invManagerFilter" onchange="onInventorySearchChange()" class="w-full p-2 border rounded-lg bg-slate-50 text-slate-700 font-semibold focus:outline-none">
@@ -185,84 +185,52 @@
         window.scrollTo(0, 0);
       }
       
-      if (pageId === 'policy') {
-        loadPolicyFromCacheOrFetch();
+      if (pageId === 'policy' && allPolicies.length === 0) {
+        fetchPolicyData();
       } else if (pageId === 'inventory') {
-        loadInventoryFromCacheOrFetch();
+        if (allInventory.length === 0) {
+          fetchInventoryData();
+        } else {
+          renderInventory();
+        }
       }
     }
 
-    // --- 1. 정책 스마트폰 캐시 및 비동기 업데이트 ---
-    function loadPolicyFromCacheOrFetch() {
-      try {
-        const cached = localStorage.getItem('skt_policy_cache');
-        if (cached) {
-          allPolicies = JSON.parse(cached);
-          renderPolicies();
-        }
-      } catch(e) {}
-
-      // 배경에서 최신 데이터 요청
-      fetchPolicyData(allPolicies.length === 0);
-    }
-
-    async function fetchPolicyData(showSpinner) {
+    // --- 1. 정책 데이터 불러오기 ---
+    async function fetchPolicyData() {
       const syncIcon = document.getElementById('syncIcon');
       const loading = document.getElementById('loading');
       
       if (syncIcon) syncIcon.classList.add('fa-spin');
-      if (showSpinner && loading) loading.classList.remove('hidden');
+      if (loading) loading.style.display = 'block';
 
       try {
         const response = await fetch(GAS_URL + '?type=policy', { redirect: 'follow' });
         const data = await response.json();
 
         if (syncIcon) syncIcon.classList.remove('fa-spin');
-        if (loading) loading.classList.add('hidden');
+        if (loading) loading.style.display = 'none';
 
         if (data && data.policies && Array.isArray(data.policies)) {
           parseGasRows(data.policies);
           renderPolicies();
-          try {
-            localStorage.setItem('skt_policy_cache', JSON.stringify(allPolicies));
-          } catch(e) {}
         }
       } catch (err) {
         console.error('Policy error:', err);
         if (syncIcon) syncIcon.classList.remove('fa-spin');
-        if (loading) loading.classList.add('hidden');
+        if (loading) loading.style.display = 'none';
       }
     }
 
-    // --- 2. 재고 스마트폰 로컬 저장소 0.01초 즉시 실행 ---
-    function loadInventoryFromCacheOrFetch() {
-      try {
-        const cachedInv = localStorage.getItem('skt_inv_cache');
-        const cachedTime = localStorage.getItem('skt_inv_time');
-
-        if (cachedInv) {
-          allInventory = JSON.parse(cachedInv);
-          populateManagerFilter();
-          updateDynamicFilters();
-          renderInventory();
-          if (cachedTime) {
-            document.getElementById('invTimeInfo').innerText = '저장된 재고 (' + cachedTime + ')';
-          }
-        }
-      } catch(e) {}
-
-      // 화면에 보여준 후 백그라운드에서 최신 데이터 가져옴
-      fetchInventoryData(allInventory.length === 0);
-    }
-
-    async function fetchInventoryData(showSpinner) {
+    // --- 2. 재고 데이터 불러오기 ---
+    async function fetchInventoryData() {
       const invSyncIcon = document.getElementById('invSyncIcon');
       const invLoading = document.getElementById('invLoading');
       const invLoadingText = document.getElementById('invLoadingText');
       
       if (invSyncIcon) invSyncIcon.classList.add('fa-spin');
-      if (showSpinner && invLoading) invLoading.classList.remove('hidden');
-      if (invLoadingText) invLoadingText.innerText = '최신 재고 데이터 동기화 중...';
+      if (invLoading) invLoading.classList.remove('hidden');
+      if (invLoadingText) invLoadingText.innerText = '최신 재고 데이터 불러오는 중...';
 
       try {
         const response = await fetch(GAS_URL + '?type=inventory', { redirect: 'follow' });
@@ -279,11 +247,6 @@
 
           const nowStr = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
           document.getElementById('invTimeInfo').innerText = '동기화 완료 (' + nowStr + ')';
-
-          try {
-            localStorage.setItem('skt_inv_cache', JSON.stringify(allInventory));
-            localStorage.setItem('skt_inv_time', nowStr);
-          } catch(e) {}
         }
       } catch (err) {
         console.error('Inventory error:', err);
@@ -732,7 +695,7 @@
     }
 
     window.onload = function() {
-      loadPolicyFromCacheOrFetch();
+      fetchPolicyData();
     };
   </script>
 </body>
