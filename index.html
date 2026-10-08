@@ -162,7 +162,7 @@
       </div>
       <div id="invLoading" class="text-center py-8 text-slate-500 text-sm hidden">
         <i class="fas fa-spinner fa-spin text-2xl text-blue-600 mb-2"></i>
-        <p>최신 재고 데이터 불러오는 중...</p>
+        <p id="invLoadingText">최신 재고 데이터 불러오는 중...</p>
       </div>
       <div id="inventoryList" class="space-y-3"></div>
     </main>
@@ -170,7 +170,8 @@
 
 
   <script>
-    const GAS_URL = 'https://script.google.com/macros/s/AKfycbw7hGRWk56q0fl7C4df8uGV2DeElpToZyXocZvhceMlgwb00LCF81mVQVjN-R7XyObWAA/exec';
+    // 새로 제공해주신 최신 구글 앱스 스크립트 배포 주소 반영 완료
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbx0GiOy7gnKG2AS0YhLKTHhpbNQv8dyelGZ5pVfKoEcMu5wiaXQ2u1LGH2JQSD0NYGnxg/exec';
     let allPolicies = [];
     let allInventory = [];
     let currentType = '010';
@@ -221,13 +222,15 @@
       }
     }
 
-    // --- 2. 재고 데이터 불러오기 ---
+    // --- 2. 재고 데이터 초고속 불러오기 ---
     async function fetchInventoryData(forceRefresh) {
       const invSyncIcon = document.getElementById('invSyncIcon');
       const invLoading = document.getElementById('invLoading');
+      const invLoadingText = document.getElementById('invLoadingText');
       
       if (invSyncIcon) invSyncIcon.classList.add('fa-spin');
       if (invLoading) invLoading.classList.remove('hidden');
+      if (invLoadingText) invLoadingText.innerText = '최신 재고 데이터 불러오는 중...';
 
       try {
         const response = await fetch(GAS_URL + '?type=inventory', { redirect: 'follow' });
@@ -244,11 +247,21 @@
 
           const nowStr = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
           document.getElementById('invTimeInfo').innerText = '동기화 완료 (' + nowStr + ')';
+        } else {
+          // 예외 발생 시 전체 수신 폴백
+          const fallbackRes = await fetch(GAS_URL, { redirect: 'follow' });
+          const fallbackData = await fallbackRes.json();
+          if (fallbackData && fallbackData.inventory) {
+            parseInventoryRows(fallbackData.inventory);
+            populateManagerFilter();
+            updateDynamicColorFilter();
+            renderInventory();
+          }
         }
       } catch (err) {
         console.error('Inventory error:', err);
         if (invSyncIcon) invSyncIcon.classList.remove('fa-spin');
-        if (invLoading) invLoading.classList.add('hidden');
+        if (invLoadingText) invLoadingText.innerText = '동기화 실패. 상단 새로고침을 눌러주세요.';
       }
     }
 
@@ -361,7 +374,6 @@
       }
     }
 
-    // --- 초고속 렌더링 최적화: 검색어 없을 시 상위 30개만 즉시 카드 생성 ---
     function renderInventory() {
       const rawSearch = document.getElementById('invSearchInput').value.trim();
       const managerFilter = document.getElementById('invManagerFilter').value;
@@ -392,7 +404,6 @@
 
       document.getElementById('invCount').innerText = filtered.length;
       
-      // 검색 조건이 없을 때는 상위 30개만 빠르게 출력하여 핸드폰 멈춤 방지
       const isFiltered = rawSearch || managerFilter !== 'ALL' || capFilter !== 'ALL' || colorFilter !== 'ALL';
       const displayItems = isFiltered ? filtered : filtered.slice(0, 30);
 
