@@ -71,7 +71,7 @@
               <h1 class="text-lg font-bold">오늘의 정책</h1>
             </div>
           </div>
-          <button onclick="fetchSheetData()" class="bg-red-700 hover:bg-red-800 text-white p-2 rounded-full text-xs flex items-center gap-1 transition">
+          <button onclick="fetchPolicyData()" class="bg-red-700 hover:bg-red-800 text-white p-2 rounded-full text-xs flex items-center gap-1 transition">
             <i class="fas fa-sync-alt" id="syncIcon"></i> 동기화
           </button>
         </div>
@@ -96,7 +96,7 @@
     <main class="max-w-md mx-auto px-4 pt-2 space-y-4">
       <div id="loading" class="text-center py-8 text-slate-500 text-sm">
         <i class="fas fa-spinner fa-spin text-2xl text-red-600 mb-2"></i>
-        <p id="loadingMsg">최신 단가 및 재고 불러오는 중...</p>
+        <p id="loadingMsg">실시간 정책 로딩 중...</p>
       </div>
       <div id="policyList" class="space-y-3"></div>
     </main>
@@ -117,8 +117,8 @@
               <h1 class="text-lg font-bold">재고 조회</h1>
             </div>
           </div>
-          <button onclick="fetchSheetData()" class="bg-blue-700 hover:bg-blue-800 text-white p-2 rounded-full text-xs flex items-center gap-1 transition">
-            <i class="fas fa-sync-alt" id="invSyncIcon"></i> 동기화
+          <button onclick="fetchInventoryData(true)" class="bg-blue-700 hover:bg-blue-800 text-white p-2 rounded-full text-xs flex items-center gap-1 transition">
+            <i class="fas fa-sync-alt" id="invSyncIcon"></i> 새로고침
           </button>
         </div>
       </header>
@@ -156,8 +156,13 @@
     </div>
 
     <main class="max-w-md mx-auto px-4 pt-2 space-y-4">
-      <div id="invSummary" class="text-xs text-slate-500 font-bold px-1 flex justify-between">
+      <div id="invSummary" class="text-xs text-slate-500 font-bold px-1 flex justify-between items-center">
         <span>조회 결과: <strong id="invCount" class="text-blue-600">0</strong>건</span>
+        <span id="invTimeInfo" class="text-[10px] text-slate-400 font-normal"></span>
+      </div>
+      <div id="invLoading" class="text-center py-8 text-slate-500 text-sm hidden">
+        <i class="fas fa-spinner fa-spin text-2xl text-blue-600 mb-2"></i>
+        <p>최신 재고 데이터 불러오는 중...</p>
       </div>
       <div id="inventoryList" class="space-y-3"></div>
     </main>
@@ -166,7 +171,7 @@
 
   <script>
     // 새로 발급받으신 최신 GAS 웹앱 URL 반영 완료
-    const GAS_URL = 'https://script.google.com/macros/s/AKfycbxT3h1YFeYRppxVpkz1Tlx8bJldFEW1Tlnu0siN8yNIZTelwTaOsk2ybmR7CHi5YKR9WA/exec';
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbyIVhjF2397d7fjZPvNga1jgj1T5bPdGybXbs5CCDpMhrmUhMTGqX2uCrKXBLQs4rhrqQ/exec';
     let allPolicies = [];
     let allInventory = [];
     let currentType = '010';
@@ -178,46 +183,89 @@
         target.classList.add('active');
         window.scrollTo(0, 0);
       }
-      if (allPolicies.length === 0 && allInventory.length === 0) {
-        fetchSheetData();
+      
+      if (pageId === 'policy' && allPolicies.length === 0) {
+        fetchPolicyData();
+      } else if (pageId === 'inventory' && allInventory.length === 0) {
+        loadInventoryFromCacheOrFetch();
       }
     }
 
-    async function fetchSheetData() {
+    // --- 1. 정책 전용 초고속 불러오기 (0.2초) ---
+    async function fetchPolicyData() {
       const syncIcon = document.getElementById('syncIcon');
-      const invSyncIcon = document.getElementById('invSyncIcon');
       const loading = document.getElementById('loading');
       
       if (syncIcon) syncIcon.classList.add('fa-spin');
-      if (invSyncIcon) invSyncIcon.classList.add('fa-spin');
       if (loading) loading.style.display = 'block';
 
       try {
-        const response = await fetch(GAS_URL, { redirect: 'follow' });
+        const response = await fetch(GAS_URL + '?type=policy', { redirect: 'follow' });
         const data = await response.json();
 
         if (syncIcon) syncIcon.classList.remove('fa-spin');
-        if (invSyncIcon) invSyncIcon.classList.remove('fa-spin');
         if (loading) loading.style.display = 'none';
 
-        if (data && data.status === 'success') {
-          if (data.policies && Array.isArray(data.policies)) {
-            parseGasRows(data.policies);
-            renderPolicies();
-          }
-          if (data.inventory && Array.isArray(data.inventory)) {
-            parseInventoryRows(data.inventory);
-            populateManagerFilter();
-            updateDynamicColorFilter();
-            renderInventory();
-          }
+        if (data && data.policies && Array.isArray(data.policies)) {
+          parseGasRows(data.policies);
+          renderPolicies();
         }
       } catch (err) {
-        console.error('Fetch error:', err);
+        console.error('Policy error:', err);
         if (syncIcon) syncIcon.classList.remove('fa-spin');
-        if (invSyncIcon) invSyncIcon.classList.remove('fa-spin');
         const loadingMsg = document.getElementById('loadingMsg');
-        if (loadingMsg) loadingMsg.innerText = '데이터 동기화 실패. 상단 동기화 버튼을 눌러주세요.';
+        if (loadingMsg) loadingMsg.innerText = '정책 데이터 로딩 실패. 상단 버튼을 눌러주세요.';
+      }
+    }
+
+    // --- 2. 재고 로컬 캐시 활용 및 비동기 수신 ---
+    function loadInventoryFromCacheOrFetch() {
+      const cachedInv = localStorage.getItem('skt_inv_cache');
+      const cachedTime = localStorage.getItem('skt_inv_time');
+
+      if (cachedInv) {
+        allInventory = JSON.parse(cachedInv);
+        populateManagerFilter();
+        updateDynamicColorFilter();
+        renderInventory();
+        if (cachedTime) {
+          document.getElementById('invTimeInfo').innerText = '저장된 재고 (' + cachedTime + ')';
+        }
+      } else {
+        fetchInventoryData(false);
+      }
+    }
+
+    async function fetchInventoryData(forceRefresh) {
+      const invSyncIcon = document.getElementById('invSyncIcon');
+      const invLoading = document.getElementById('invLoading');
+      
+      if (invSyncIcon) invSyncIcon.classList.add('fa-spin');
+      if (invLoading) invLoading.classList.remove('hidden');
+
+      try {
+        const response = await fetch(GAS_URL + '?type=inventory', { redirect: 'follow' });
+        const data = await response.json();
+
+        if (invSyncIcon) invSyncIcon.classList.remove('fa-spin');
+        if (invLoading) invLoading.classList.add('hidden');
+
+        if (data && data.inventory && Array.isArray(data.inventory)) {
+          parseInventoryRows(data.inventory);
+          populateManagerFilter();
+          updateDynamicColorFilter();
+          renderInventory();
+
+          // 로컬 스토리지에 캐시 저장 (다음 접속 시 0.01초 로딩)
+          const nowStr = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+          localStorage.setItem('skt_inv_cache', JSON.stringify(allInventory));
+          localStorage.setItem('skt_inv_time', nowStr);
+          document.getElementById('invTimeInfo').innerText = '최신 동기화 (' + nowStr + ')';
+        }
+      } catch (err) {
+        console.error('Inventory error:', err);
+        if (invSyncIcon) invSyncIcon.classList.remove('fa-spin');
+        if (invLoading) invLoading.classList.add('hidden');
       }
     }
 
@@ -535,7 +583,9 @@
       renderPolicies();
     }
 
-    window.onload = fetchSheetData;
+    window.onload = function() {
+      fetchPolicyData();
+    };
   </script>
 </body>
 </html>
