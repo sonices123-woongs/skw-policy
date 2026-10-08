@@ -170,8 +170,8 @@
 
 
   <script>
-    // 새로 제공해주신 최신 구글 앱스 스크립트 배포 주소 반영 완료
-    const GAS_URL = 'https://script.google.com/macros/s/AKfycbx0GiOy7gnKG2AS0YhLKTHhpbNQv8dyelGZ5pVfKoEcMu5wiaXQ2u1LGH2JQSD0NYGnxg/exec';
+    // 새로 제공해주신 최신 GAS 캐싱 웹앱 URL 반영 완료
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbw8wPAJ8fYc5tSFgVRV_DGb_G0wIM0IKRLBH-sx0uGVGgvwO8ULaPthgw6BZPsgnKuK0w/exec';
     let allPolicies = [];
     let allInventory = [];
     let currentType = '010';
@@ -248,7 +248,7 @@
           const nowStr = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
           document.getElementById('invTimeInfo').innerText = '동기화 완료 (' + nowStr + ')';
         } else {
-          // 예외 발생 시 전체 수신 폴백
+          // 예외 발생 시 전체 수신
           const fallbackRes = await fetch(GAS_URL, { redirect: 'follow' });
           const fallbackData = await fallbackRes.json();
           if (fallbackData && fallbackData.inventory) {
