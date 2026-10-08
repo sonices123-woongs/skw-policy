@@ -123,16 +123,13 @@
         </div>
       </header>
 
-      <!-- 재고 검색 & 담당/용량/색상 필터 -->
       <div class="max-w-md mx-auto px-4 pt-3 pb-3 space-y-2">
         <div class="bg-white p-3 rounded-xl shadow-md border border-slate-200 space-y-3">
-          <!-- 기종명 검색 -->
           <div class="relative">
             <i class="fas fa-search absolute left-3 top-3 text-slate-400"></i>
             <input type="text" id="invSearchInput" oninput="onInventorySearchChange()" placeholder="기종명 검색 (예: S94, 942, IP18, 플립)" class="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
           </div>
 
-          <!-- 담당, 용량, 색상 3개 필터 드롭다운 -->
           <div class="grid grid-cols-3 gap-2 text-xs">
             <div>
               <select id="invManagerFilter" onchange="onInventorySearchChange()" class="w-full p-2 border rounded-lg bg-slate-50 text-slate-700 font-semibold focus:outline-none">
@@ -168,7 +165,8 @@
 
 
   <script>
-    const GAS_URL = 'https://script.google.com/macros/s/AKfycbwm4lacKpGplwM10wiHfsZsVfGFUw6sKGHYiH7IJ-7OkqPqJSgGLZYO3UyVlzieyhLO/exec';
+    // 새로 발급받으신 경량화 GAS 웹앱 URL 반영 완료!
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbyGI0-Nf6bop1pHR-6DEmMh_24OSisgm9t6YjMhgiVfTiVoQL3OXKMHz2jGCTEXAH2azA/exec';
     let allPolicies = [];
     let allInventory = [];
     let currentType = '010';
@@ -227,22 +225,22 @@
       }
     };
 
-    // --- 재고 데이터 파싱 ---
+    // --- 경량화 재고 데이터 파싱 ---
     function parseInventoryRows(rows) {
       allInventory = [];
-      if (!rows || rows.length < 2) return;
+      if (!rows || rows.length === 0) return;
 
-      for (let i = 1; i < rows.length; i++) {
+      for (let i = 0; i < rows.length; i++) {
         const r = rows[i];
         if (!r || !Array.isArray(r)) continue;
 
-        let manager = r[3] ? String(r[3]).trim() : ''; // D열: 담당
-        let region = r[4] ? String(r[4]).trim() : '';  // E열: 지역
-        let location = r[11] ? String(r[11]).trim() : ''; // L열: 보유처
-        let modelName = r[13] ? String(r[13]).trim() : ''; // N열: 대표모델명
-        let color = r[17] ? String(r[17]).trim() : ''; // R열: 색상
+        let manager = r[0] || '';
+        let region = r[1] || '';
+        let location = r[2] || '';
+        let modelName = r[3] || '';
+        let color = r[4] || '';
 
-        if (!modelName || modelName === '대표모델명' || modelName === 'None') continue;
+        if (!modelName || modelName === '대표모델명') continue;
 
         allInventory.push({
           manager: manager,
@@ -253,7 +251,6 @@
         });
       }
 
-      // 정렬: 담당(D열) -> 지역(E열) -> 보유처(L열)
       allInventory.sort((a, b) => {
         if (a.manager !== b.manager) return a.manager.localeCompare(b.manager, 'ko');
         if (a.region !== b.region) return a.region.localeCompare(b.region, 'ko');
@@ -261,7 +258,6 @@
       });
     }
 
-    // 담당 드롭다운 생성
     function populateManagerFilter() {
       const managerSelect = document.getElementById('invManagerFilter');
       if (!managerSelect) return;
@@ -287,13 +283,11 @@
       return cleanText.includes(cleanQuery);
     }
 
-    // 검색어/담당/용량이 변경될 때 색상 필터를 동적으로 업데이트
     function onInventorySearchChange() {
       updateDynamicColorFilter();
       renderInventory();
     }
 
-    // 현재 검색 조건에 맞는 데이터의 색상만 추출하여 색상 필터 생성
     function updateDynamicColorFilter() {
       const colorSelect = document.getElementById('invColorFilter');
       if (!colorSelect) return;
@@ -303,15 +297,11 @@
       const capFilter = document.getElementById('invCapacityFilter').value;
       const prevSelectedColor = colorSelect.value;
 
-      // 현재 조건(검색어, 담당, 용량)에 맞는 아이템들의 색상만 수집
       const availableColors = new Set();
       allInventory.forEach(item => {
-        if (rawSearch && !isMatch(item.modelName, rawSearch) && !isMatch(item.location, rawSearch)) {
-          return;
-        }
-        if (managerFilter !== 'ALL' && item.manager !== managerFilter) {
-          return;
-        }
+        if (rawSearch && !isMatch(item.modelName, rawSearch) && !isMatch(item.location, rawSearch)) return;
+        if (managerFilter !== 'ALL' && item.manager !== managerFilter) return;
+        
         const modelUpper = item.modelName.toUpperCase();
         if (capFilter === 'BASIC') {
           if (modelUpper.includes('256') || modelUpper.includes('512') || modelUpper.includes('1T') || modelUpper.includes('128')) return;
@@ -334,13 +324,11 @@
         colorSelect.innerHTML += `<option value="${c}" ${isSelected}>${c}</option>`;
       });
 
-      // 기존 선택한 색상이 현재 조건에서 사라졌다면 'ALL'로 리셋
       if (prevSelectedColor !== 'ALL' && !availableColors.has(prevSelectedColor)) {
         colorSelect.value = 'ALL';
       }
     }
 
-    // --- 재고 목록 렌더링 ---
     function renderInventory() {
       const rawSearch = document.getElementById('invSearchInput').value.trim();
       const managerFilter = document.getElementById('invManagerFilter').value;
@@ -350,17 +338,9 @@
       if (!list) return;
 
       const filtered = allInventory.filter(item => {
-        // 1. 대표모델명 유연 검색
-        if (rawSearch && !isMatch(item.modelName, rawSearch) && !isMatch(item.location, rawSearch)) {
-          return false;
-        }
+        if (rawSearch && !isMatch(item.modelName, rawSearch) && !isMatch(item.location, rawSearch)) return false;
+        if (managerFilter !== 'ALL' && item.manager !== managerFilter) return false;
 
-        // 2. 담당 필터링
-        if (managerFilter !== 'ALL' && item.manager !== managerFilter) {
-          return false;
-        }
-
-        // 3. 용량 필터링
         const modelUpper = item.modelName.toUpperCase();
         if (capFilter === 'BASIC') {
           if (modelUpper.includes('256') || modelUpper.includes('512') || modelUpper.includes('1T') || modelUpper.includes('128')) return false;
@@ -372,7 +352,6 @@
           if (modelUpper.includes('256') || modelUpper.includes('512')) return false;
         }
 
-        // 4. 색상 필터링
         if (colorFilter !== 'ALL' && item.color !== colorFilter) return false;
 
         return true;
@@ -408,7 +387,7 @@
       });
     }
 
-    // --- 정책 데이터 파싱 ---
+    // --- 정책 파싱 ---
     function getCategoryData(planCell, commonCell, selectCell, defaultPlan) {
       let plan = defaultPlan;
       if (planCell !== undefined && planCell !== null && String(planCell).trim() !== '' && String(planCell).trim() !== 'None') {
