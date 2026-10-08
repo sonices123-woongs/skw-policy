@@ -157,7 +157,7 @@
 
     <main class="max-w-md mx-auto px-4 pt-2 space-y-4">
       <div id="invSummary" class="text-xs text-slate-500 font-bold px-1 flex justify-between items-center">
-        <span>조회 결과: <strong id="invCount" class="text-blue-600">0</strong>건</span>
+        <span>조회 결과: <strong id="invCount" class="text-blue-600">0</strong>건 <span id="invLimitMsg" class="text-[10px] text-slate-400 font-normal"></span></span>
         <span id="invTimeInfo" class="text-[10px] text-slate-400 font-normal"></span>
       </div>
       <div id="invLoading" class="text-center py-8 text-slate-500 text-sm hidden">
@@ -170,7 +170,6 @@
 
 
   <script>
-    // 새로 발급받으신 GAS 웹앱 URL 연결 완료
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbw7hGRWk56q0fl7C4df8uGV2DeElpToZyXocZvhceMlgwb00LCF81mVQVjN-R7XyObWAA/exec';
     let allPolicies = [];
     let allInventory = [];
@@ -222,7 +221,7 @@
       }
     }
 
-    // --- 2. 재고 데이터 불러오기 (실시간 수신 및 렌더링) ---
+    // --- 2. 재고 데이터 불러오기 ---
     async function fetchInventoryData(forceRefresh) {
       const invSyncIcon = document.getElementById('invSyncIcon');
       const invLoading = document.getElementById('invLoading');
@@ -245,16 +244,6 @@
 
           const nowStr = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
           document.getElementById('invTimeInfo').innerText = '동기화 완료 (' + nowStr + ')';
-        } else {
-          // 예외 상황 시 전체 요청 폴백
-          const fallbackRes = await fetch(GAS_URL, { redirect: 'follow' });
-          const fallbackData = await fallbackRes.json();
-          if (fallbackData && fallbackData.inventory) {
-            parseInventoryRows(fallbackData.inventory);
-            populateManagerFilter();
-            updateDynamicColorFilter();
-            renderInventory();
-          }
         }
       } catch (err) {
         console.error('Inventory error:', err);
@@ -372,6 +361,7 @@
       }
     }
 
+    // --- 초고속 렌더링 최적화: 검색어 없을 시 상위 30개만 즉시 카드 생성 ---
     function renderInventory() {
       const rawSearch = document.getElementById('invSearchInput').value.trim();
       const managerFilter = document.getElementById('invManagerFilter').value;
@@ -401,6 +391,16 @@
       });
 
       document.getElementById('invCount').innerText = filtered.length;
+      
+      // 검색 조건이 없을 때는 상위 30개만 빠르게 출력하여 핸드폰 멈춤 방지
+      const isFiltered = rawSearch || managerFilter !== 'ALL' || capFilter !== 'ALL' || colorFilter !== 'ALL';
+      const displayItems = isFiltered ? filtered : filtered.slice(0, 30);
+
+      const limitMsg = document.getElementById('invLimitMsg');
+      if (limitMsg) {
+        limitMsg.innerText = (!isFiltered && filtered.length > 30) ? '(상위 30개 표시 중 - 검색 시 전체 조회)' : '';
+      }
+
       list.innerHTML = '';
 
       if (filtered.length === 0) {
@@ -408,8 +408,9 @@
         return;
       }
 
-      filtered.forEach(item => {
-        const card = `
+      let htmlBuffer = '';
+      displayItems.forEach(item => {
+        htmlBuffer += `
           <div class="bg-white p-3.5 rounded-xl shadow-sm border border-slate-200 space-y-2">
             <div class="flex justify-between items-start">
               <div class="flex items-center gap-1.5 flex-wrap">
@@ -433,8 +434,8 @@
             </div>
           </div>
         `;
-        list.innerHTML += card;
       });
+      list.innerHTML = htmlBuffer;
     }
 
     function getCategoryData(planCell, commonCell, selectCell, defaultPlan) {
@@ -512,6 +513,7 @@
         return;
       }
 
+      let htmlBuffer = '';
       filtered.forEach(p => {
         const typeData = p[currentType];
         const subAmount = (currentType === '기변') ? p.subChange : p.sub010;
@@ -527,7 +529,7 @@
           `;
         }
 
-        const card = `
+        htmlBuffer += `
           <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-3">
             <div class="flex justify-between items-start border-b pb-2 border-slate-100">
               <div>
@@ -558,8 +560,8 @@
             </div>
           </div>
         `;
-        list.innerHTML += card;
       });
+      list.innerHTML = htmlBuffer;
     }
 
     function setType(type) {
