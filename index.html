@@ -165,12 +165,11 @@
 
 
   <script>
-    // 새로 발급받으신 초고속 캐시 GAS 웹앱 URL 반영 완료
-    const GAS_URL = 'https://script.google.com/macros/s/AKfycbziv76w0GRFdDPVMPkmsgC0aV6FdWD6ZTFEyBpxsqUni9sIFCM_HUW1ds-k7iUf76KqwQ/exec';
+    // 새로 발급받으신 최신 GAS 웹앱 URL 반영 완료
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbxT3h1YFeYRppxVpkz1Tlx8bJldFEW1Tlnu0siN8yNIZTelwTaOsk2ybmR7CHi5YKR9WA/exec';
     let allPolicies = [];
     let allInventory = [];
     let currentType = '010';
-    let fetchTimer = null;
 
     function showPage(pageId) {
       document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
@@ -184,7 +183,7 @@
       }
     }
 
-    function fetchSheetData() {
+    async function fetchSheetData() {
       const syncIcon = document.getElementById('syncIcon');
       const invSyncIcon = document.getElementById('invSyncIcon');
       const loading = document.getElementById('loading');
@@ -193,47 +192,34 @@
       if (invSyncIcon) invSyncIcon.classList.add('fa-spin');
       if (loading) loading.style.display = 'block';
 
-      const oldScript = document.getElementById('gas-jsonp-script');
-      if (oldScript) oldScript.remove();
+      try {
+        const response = await fetch(GAS_URL, { redirect: 'follow' });
+        const data = await response.json();
 
-      if (fetchTimer) clearTimeout(fetchTimer);
-      fetchTimer = setTimeout(() => {
+        if (syncIcon) syncIcon.classList.remove('fa-spin');
+        if (invSyncIcon) invSyncIcon.classList.remove('fa-spin');
+        if (loading) loading.style.display = 'none';
+
+        if (data && data.status === 'success') {
+          if (data.policies && Array.isArray(data.policies)) {
+            parseGasRows(data.policies);
+            renderPolicies();
+          }
+          if (data.inventory && Array.isArray(data.inventory)) {
+            parseInventoryRows(data.inventory);
+            populateManagerFilter();
+            updateDynamicColorFilter();
+            renderInventory();
+          }
+        }
+      } catch (err) {
+        console.error('Fetch error:', err);
         if (syncIcon) syncIcon.classList.remove('fa-spin');
         if (invSyncIcon) invSyncIcon.classList.remove('fa-spin');
         const loadingMsg = document.getElementById('loadingMsg');
-        if (loadingMsg) loadingMsg.innerText = '동기화 응답 시간이 지연되고 있습니다. 상단 동기화 버튼을 다시 눌러주세요.';
-      }, 8000);
-
-      const script = document.createElement('script');
-      script.id = 'gas-jsonp-script';
-      script.src = `${GAS_URL}?callback=handleGasResponse&_=` + new Date().getTime();
-      document.body.appendChild(script);
-    }
-
-    window.handleGasResponse = function(data) {
-      if (fetchTimer) clearTimeout(fetchTimer);
-
-      const syncIcon = document.getElementById('syncIcon');
-      const invSyncIcon = document.getElementById('invSyncIcon');
-      if (syncIcon) syncIcon.classList.remove('fa-spin');
-      if (invSyncIcon) invSyncIcon.classList.remove('fa-spin');
-
-      const loading = document.getElementById('loading');
-      if (loading) loading.style.display = 'none';
-
-      if (data && typeof data === 'object') {
-        if (data.policies && Array.isArray(data.policies)) {
-          parseGasRows(data.policies);
-          renderPolicies();
-        }
-        if (data.inventory && Array.isArray(data.inventory)) {
-          parseInventoryRows(data.inventory);
-          populateManagerFilter();
-          updateDynamicColorFilter();
-          renderInventory();
-        }
+        if (loadingMsg) loadingMsg.innerText = '데이터 동기화 실패. 상단 동기화 버튼을 눌러주세요.';
       }
-    };
+    }
 
     function parseInventoryRows(rows) {
       allInventory = [];
