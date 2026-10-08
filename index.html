@@ -130,10 +130,16 @@
             <input type="text" id="invSearchInput" oninput="onInventorySearchChange()" placeholder="기종명/보유처 검색 (예: S94, 942, 서부센터)" class="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
           </div>
 
-          <div class="grid grid-cols-3 gap-2 text-xs">
+          <!-- 2x2 깔끔한 드롭다운 필터 (담당, 지역, 용량, 색상) -->
+          <div class="grid grid-cols-2 gap-2 text-xs">
             <div>
               <select id="invManagerFilter" onchange="onInventorySearchChange()" class="w-full p-2 border rounded-lg bg-slate-50 text-slate-700 font-semibold focus:outline-none">
                 <option value="ALL">담당 전체</option>
+              </select>
+            </div>
+            <div>
+              <select id="invRegionFilter" onchange="onInventorySearchChange()" class="w-full p-2 border rounded-lg bg-slate-50 text-slate-700 font-semibold focus:outline-none">
+                <option value="ALL">지역 전체</option>
               </select>
             </div>
             <div>
@@ -236,7 +242,7 @@
 
         if (data && data.inventory && Array.isArray(data.inventory)) {
           parseInventoryRows(data.inventory);
-          populateManagerFilter();
+          populateManagerAndRegionFilters();
           updateDynamicFilters();
           renderInventory();
 
@@ -271,7 +277,7 @@
         if (!r || !Array.isArray(r)) continue;
 
         let manager = r[0] ? String(r[0]).trim() : '';
-        let region = r[1] ? String(r[1]).trim() : '';
+        let region = r[1] ? String(r[1]).trim() : ''; // B열: 지역
         let location = r[2] ? String(r[2]).trim() : '';
         let moveDate = r[3] ? String(r[3]).trim() : '';
         if (moveDate.includes('T')) moveDate = moveDate.split('T')[0];
@@ -303,21 +309,35 @@
       });
     }
 
-    function populateManagerFilter() {
+    function populateManagerAndRegionFilters() {
       const managerSelect = document.getElementById('invManagerFilter');
-      if (!managerSelect) return;
+      const regionSelect = document.getElementById('invRegionFilter');
 
       const managers = new Set();
+      const regions = new Set();
+
       allInventory.forEach(item => {
         if (item.manager && item.manager !== '레벨2조직명' && item.manager !== '영업담당' && item.manager !== 'None') {
           managers.add(item.manager);
         }
+        if (item.region && item.region !== '지역' && item.region !== 'None') {
+          regions.add(item.region);
+        }
       });
 
-      managerSelect.innerHTML = '<option value="ALL">담당 전체</option>';
-      Array.from(managers).sort().forEach(m => {
-        managerSelect.innerHTML += `<option value="${m}">${m}</option>`;
-      });
+      if (managerSelect) {
+        managerSelect.innerHTML = '<option value="ALL">담당 전체</option>';
+        Array.from(managers).sort().forEach(m => {
+          managerSelect.innerHTML += `<option value="${m}">${m}</option>`;
+        });
+      }
+
+      if (regionSelect) {
+        regionSelect.innerHTML = '<option value="ALL">지역 전체</option>';
+        Array.from(regions).sort().forEach(r => {
+          regionSelect.innerHTML += `<option value="${r}">${r}</option>`;
+        });
+      }
     }
 
     function isMatch(text, query) {
@@ -349,13 +369,14 @@
 
       const rawSearch = document.getElementById('invSearchInput').value.trim();
       const managerFilter = document.getElementById('invManagerFilter').value;
+      const regionFilter = document.getElementById('invRegionFilter').value;
       const prevSelectedCap = capSelect.value;
 
       const availableCaps = new Set();
       allInventory.forEach(item => {
-        // [수정] 일련번호(serialNo) 검색은 오검색 방지를 위해 제외하고 모델명과 보유처만 비교
         if (rawSearch && !isMatch(item.modelName, rawSearch) && !isMatch(item.location, rawSearch)) return;
         if (managerFilter !== 'ALL' && item.manager !== managerFilter) return;
+        if (regionFilter !== 'ALL' && item.region !== regionFilter) return;
 
         if (item.capacity) {
           availableCaps.add(item.capacity);
@@ -389,14 +410,15 @@
 
       const rawSearch = document.getElementById('invSearchInput').value.trim();
       const managerFilter = document.getElementById('invManagerFilter').value;
+      const regionFilter = document.getElementById('invRegionFilter').value;
       const capFilter = document.getElementById('invCapacityFilter').value;
       const prevSelectedColor = colorSelect.value;
 
       const availableColors = new Set();
       allInventory.forEach(item => {
-        // [수정] 일련번호(serialNo) 검색은 오검색 방지를 위해 제외
         if (rawSearch && !isMatch(item.modelName, rawSearch) && !isMatch(item.location, rawSearch)) return;
         if (managerFilter !== 'ALL' && item.manager !== managerFilter) return;
+        if (regionFilter !== 'ALL' && item.region !== regionFilter) return;
         if (capFilter !== 'ALL' && item.capacity !== capFilter) return;
 
         if (item.color && item.color !== '색상' && item.color !== 'None') {
@@ -418,15 +440,16 @@
     function renderInventory() {
       const rawSearch = document.getElementById('invSearchInput').value.trim();
       const managerFilter = document.getElementById('invManagerFilter').value;
+      const regionFilter = document.getElementById('invRegionFilter').value;
       const capFilter = document.getElementById('invCapacityFilter').value;
       const colorFilter = document.getElementById('invColorFilter').value;
       const list = document.getElementById('inventoryList');
       if (!list) return;
 
       const filtered = allInventory.filter(item => {
-        // [수정] 재고 검색 필터링 조건에서 일련번호(serialNo) 제외하고 모델명과 보유처만 비교
         if (rawSearch && !isMatch(item.modelName, rawSearch) && !isMatch(item.location, rawSearch)) return false;
         if (managerFilter !== 'ALL' && item.manager !== managerFilter) return false;
+        if (regionFilter !== 'ALL' && item.region !== regionFilter) return false;
         if (capFilter !== 'ALL' && item.capacity !== capFilter) return false;
         if (colorFilter !== 'ALL' && item.color !== colorFilter) return false;
 
@@ -435,7 +458,7 @@
 
       document.getElementById('invCount').innerText = filtered.length;
       
-      const isFiltered = rawSearch || managerFilter !== 'ALL' || capFilter !== 'ALL' || colorFilter !== 'ALL';
+      const isFiltered = rawSearch || managerFilter !== 'ALL' || regionFilter !== 'ALL' || capFilter !== 'ALL' || colorFilter !== 'ALL';
       const displayItems = isFiltered ? filtered : filtered.slice(0, 30);
 
       const limitMsg = document.getElementById('invLimitMsg');
