@@ -161,7 +161,8 @@
 
 
   <script>
-    const GAS_URL = 'https://script.google.com/macros/s/AKfycbxTMvbf38L7yqbcXh-m9CVZ4UTA6a1AwGigdd3UrEaH935ydCCe_mx69vBiM2vu8a3sKw/exec';
+    // 새로 발급받으신 GAS 웹앱 URL 연결 완료
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbwm4lacKpGplwM10wiHfsZsVfGFUw6sKGHYiH7IJ-7OkqPqJSgGLZYO3UyVlzieyhLO/exec';
     let allPolicies = [];
     let allInventory = [];
     let currentType = '010';
@@ -204,7 +205,6 @@
       const loading = document.getElementById('loading');
       if (loading) loading.style.display = 'none';
 
-      // 1. 신규 호환 객체 형식 { policies, inventory }
       if (data && typeof data === 'object' && !Array.isArray(data)) {
         if (data.policies && Array.isArray(data.policies)) {
           parseGasRows(data.policies);
@@ -215,9 +215,7 @@
           populateColorFilter();
           renderInventory();
         }
-      } 
-      // 2. 구형 배열 형식 [ row1, row2, ... ] 호환 처리
-      else if (Array.isArray(data)) {
+      } else if (Array.isArray(data)) {
         parseGasRows(data);
         renderPolicies();
       }
@@ -272,7 +270,6 @@
       });
     }
 
-    // --- 강력한 검색어 비교 함수 ---
     function isMatch(text, query) {
       if (!query) return true;
       if (!text) return false;
@@ -290,12 +287,10 @@
       if (!list) return;
 
       const filtered = allInventory.filter(item => {
-        // 1. 대표모델명 유연 검색 (942, S94, IP18 등 포함되면 무조건 매칭)
         if (rawSearch && !isMatch(item.modelName, rawSearch) && !isMatch(item.location, rawSearch)) {
           return false;
         }
 
-        // 2. 용량 필터링
         const modelUpper = item.modelName.toUpperCase();
         if (capFilter === 'BASIC') {
           if (modelUpper.includes('256') || modelUpper.includes('512') || modelUpper.includes('1T') || modelUpper.includes('128')) return false;
@@ -307,7 +302,6 @@
           if (modelUpper.includes('256') || modelUpper.includes('512')) return false;
         }
 
-        // 3. 색상 필터링
         if (colorFilter !== 'ALL' && item.color !== colorFilter) return false;
 
         return true;
