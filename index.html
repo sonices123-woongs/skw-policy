@@ -96,7 +96,7 @@
     <main class="max-w-md mx-auto px-4 pt-2 space-y-4">
       <div id="loading" class="text-center py-8 text-slate-500 text-sm">
         <i class="fas fa-spinner fa-spin text-2xl text-red-600 mb-2"></i>
-        <p>최신 단가 불러오는 중...</p>
+        <p>최신 단가 및 재고 불러오는 중...</p>
       </div>
       <div id="policyList" class="space-y-3"></div>
     </main>
@@ -127,7 +127,7 @@
         <div class="bg-white p-3 rounded-xl shadow-md border border-slate-200 space-y-3">
           <div class="relative">
             <i class="fas fa-search absolute left-3 top-3 text-slate-400"></i>
-            <input type="text" id="invSearchInput" oninput="onInventorySearchChange()" placeholder="기종명 검색 (예: S94, 942, IP18, 플립)" class="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <input type="text" id="invSearchInput" oninput="onInventorySearchChange()" placeholder="기종명/보유처/일련번호 검색 (예: S94, 942, IP18)" class="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
           </div>
 
           <div class="grid grid-cols-3 gap-2 text-xs">
@@ -165,8 +165,8 @@
 
 
   <script>
-    // 새로 발급받으신 최신 GAS 웹앱 URL 연결 완료
-    const GAS_URL = 'https://script.google.com/macros/s/AKfycbxINJ2Lu5GG1atxN66X0n4SdrPXVBzokWigAM5iP3OuXfUw3Rcb2NIN3G-2IVQIFSRqcA/exec';
+    // 새로 발급받으신 최신 GAS 웹앱 URL 반영 완료!
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbyRjs_mRntKXFEW5gZY68L_Y7FTpepu9UGENZykysE2uH7a4GjtZ7UqFIq6Avck4ZeX6A/exec';
     let allPolicies = [];
     let allInventory = [];
     let currentType = '010';
@@ -208,7 +208,7 @@
       const loading = document.getElementById('loading');
       if (loading) loading.style.display = 'none';
 
-      if (data && typeof data === 'object' && !Array.isArray(data)) {
+      if (data && typeof data === 'object') {
         if (data.policies && Array.isArray(data.policies)) {
           parseGasRows(data.policies);
           renderPolicies();
@@ -219,31 +219,27 @@
           updateDynamicColorFilter();
           renderInventory();
         }
-      } else if (Array.isArray(data)) {
-        parseGasRows(data);
-        renderPolicies();
       }
     };
 
-    // --- 스크린샷 7개 컬럼(A~G)에 맞춘 재고 파싱 ---
+    // --- 재고 데이터 파싱 (A~G열 구조) ---
     function parseInventoryRows(rows) {
       allInventory = [];
-      if (!rows || rows.length < 2) return;
+      if (!rows || rows.length === 0) return;
 
-      for (let i = 1; i < rows.length; i++) {
+      for (let i = 0; i < rows.length; i++) {
         const r = rows[i];
         if (!r || !Array.isArray(r)) continue;
 
-        // 컬럼 매핑: A(0):담당, B(1):지역, C(2):보유처, D(3):입고일자, E(4):대표모델명, F(5):색상, G(6):일련번호
-        let manager = r[0] ? String(r[0]).trim() : '';
-        let region = r[1] ? String(r[1]).trim() : '';
-        let location = r[2] ? String(r[2]).trim() : '';
-        let moveDate = r[3] ? String(r[3]).trim() : '';
+        let manager = r[0] ? String(r[0]).trim() : '';  // A: 담당
+        let region = r[1] ? String(r[1]).trim() : '';   // B: 지역
+        let location = r[2] ? String(r[2]).trim() : ''; // C: 보유처
+        let moveDate = r[3] ? String(r[3]).trim() : ''; // D: 입고일자
         if (moveDate.includes('T')) moveDate = moveDate.split('T')[0];
 
-        let modelName = r[4] ? String(r[4]).trim() : '';
-        let color = r[5] ? String(r[5]).trim() : '';
-        let serialNo = r[6] ? String(r[6]).trim() : '';
+        let modelName = r[4] ? String(r[4]).trim() : '';// E: 대표모델명
+        let color = r[5] ? String(r[5]).trim() : '';    // F: 색상
+        let serialNo = r[6] ? String(r[6]).trim() : ''; // G: 일련번호
 
         if (!modelName || modelName === '대표모델명' || modelName === 'None') continue;
 
