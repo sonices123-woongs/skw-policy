@@ -165,8 +165,8 @@
 
 
   <script>
-    // 새로 발급받으신 경량화 GAS 웹앱 URL 반영 완료!
-    const GAS_URL = 'https://script.google.com/macros/s/AKfycbyGI0-Nf6bop1pHR-6DEmMh_24OSisgm9t6YjMhgiVfTiVoQL3OXKMHz2jGCTEXAH2azA/exec';
+    // 새로 발급받으신 최신 GAS 웹앱 URL 연결 완료
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbxINJ2Lu5GG1atxN66X0n4SdrPXVBzokWigAM5iP3OuXfUw3Rcb2NIN3G-2IVQIFSRqcA/exec';
     let allPolicies = [];
     let allInventory = [];
     let currentType = '010';
@@ -225,29 +225,36 @@
       }
     };
 
-    // --- 경량화 재고 데이터 파싱 ---
+    // --- 스크린샷 7개 컬럼(A~G)에 맞춘 재고 파싱 ---
     function parseInventoryRows(rows) {
       allInventory = [];
-      if (!rows || rows.length === 0) return;
+      if (!rows || rows.length < 2) return;
 
-      for (let i = 0; i < rows.length; i++) {
+      for (let i = 1; i < rows.length; i++) {
         const r = rows[i];
         if (!r || !Array.isArray(r)) continue;
 
-        let manager = r[0] || '';
-        let region = r[1] || '';
-        let location = r[2] || '';
-        let modelName = r[3] || '';
-        let color = r[4] || '';
+        // 컬럼 매핑: A(0):담당, B(1):지역, C(2):보유처, D(3):입고일자, E(4):대표모델명, F(5):색상, G(6):일련번호
+        let manager = r[0] ? String(r[0]).trim() : '';
+        let region = r[1] ? String(r[1]).trim() : '';
+        let location = r[2] ? String(r[2]).trim() : '';
+        let moveDate = r[3] ? String(r[3]).trim() : '';
+        if (moveDate.includes('T')) moveDate = moveDate.split('T')[0];
 
-        if (!modelName || modelName === '대표모델명') continue;
+        let modelName = r[4] ? String(r[4]).trim() : '';
+        let color = r[5] ? String(r[5]).trim() : '';
+        let serialNo = r[6] ? String(r[6]).trim() : '';
+
+        if (!modelName || modelName === '대표모델명' || modelName === 'None') continue;
 
         allInventory.push({
           manager: manager,
           region: region,
           location: location,
+          moveDate: moveDate,
           modelName: modelName,
-          color: color
+          color: color,
+          serialNo: serialNo
         });
       }
 
@@ -264,7 +271,7 @@
 
       const managers = new Set();
       allInventory.forEach(item => {
-        if (item.manager && item.manager !== '영업담당' && item.manager !== 'None') {
+        if (item.manager && item.manager !== '레벨2조직명' && item.manager !== '영업담당' && item.manager !== 'None') {
           managers.add(item.manager);
         }
       });
@@ -299,7 +306,7 @@
 
       const availableColors = new Set();
       allInventory.forEach(item => {
-        if (rawSearch && !isMatch(item.modelName, rawSearch) && !isMatch(item.location, rawSearch)) return;
+        if (rawSearch && !isMatch(item.modelName, rawSearch) && !isMatch(item.location, rawSearch) && !isMatch(item.serialNo, rawSearch)) return;
         if (managerFilter !== 'ALL' && item.manager !== managerFilter) return;
         
         const modelUpper = item.modelName.toUpperCase();
@@ -338,7 +345,7 @@
       if (!list) return;
 
       const filtered = allInventory.filter(item => {
-        if (rawSearch && !isMatch(item.modelName, rawSearch) && !isMatch(item.location, rawSearch)) return false;
+        if (rawSearch && !isMatch(item.modelName, rawSearch) && !isMatch(item.location, rawSearch) && !isMatch(item.serialNo, rawSearch)) return false;
         if (managerFilter !== 'ALL' && item.manager !== managerFilter) return false;
 
         const modelUpper = item.modelName.toUpperCase();
@@ -367,19 +374,26 @@
 
       filtered.forEach(item => {
         const card = `
-          <div class="bg-white p-3.5 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center">
-            <div class="space-y-1">
-              <div class="flex items-center gap-1.5">
-                <span class="text-[11px] font-bold bg-blue-50 text-blue-700 px-2 py-0.5 rounded">${item.modelName}</span>
-                <span class="text-[11px] font-semibold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">${item.color || '기본색상'}</span>
+          <div class="bg-white p-3.5 rounded-xl shadow-sm border border-slate-200 space-y-2">
+            <div class="flex justify-between items-start">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="text-xs font-bold bg-blue-50 text-blue-700 px-2 py-0.5 rounded">${item.modelName}</span>
+                <span class="text-xs font-semibold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">${item.color || '기본색상'}</span>
               </div>
-              <div class="text-xs text-slate-500 font-medium">
-                보유처: <strong class="text-slate-800">${item.location}</strong>
+              <div class="text-[11px] text-slate-400 font-mono">
+                S/N: <strong class="text-slate-600">${item.serialNo || '-'}</strong>
               </div>
             </div>
-            <div class="text-right text-[11px] text-slate-400 space-y-0.5">
-              <div>담당: <span class="font-semibold text-slate-600">${item.manager}</span></div>
-              <div>지역: <span class="font-semibold text-slate-600">${item.region}</span></div>
+
+            <div class="flex justify-between items-end pt-1 border-t border-slate-100 text-xs text-slate-500">
+              <div>
+                <div>보유처: <strong class="text-slate-800 font-semibold">${item.location}</strong></div>
+                <div class="text-[10px] text-slate-400">입고일: ${item.moveDate || '-'}</div>
+              </div>
+              <div class="text-right text-[11px] text-slate-400">
+                <span>담당: <strong class="text-slate-600 font-medium">${item.manager}</strong></span>
+                ${item.region ? `<span class="ml-1">(${item.region})</span>` : ''}
+              </div>
             </div>
           </div>
         `;
