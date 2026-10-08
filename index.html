@@ -71,7 +71,7 @@
               <h1 class="text-lg font-bold">오늘의 정책</h1>
             </div>
           </div>
-          <button onclick="fetchPolicyData()" class="bg-red-700 hover:bg-red-800 text-white p-2 rounded-full text-xs flex items-center gap-1 transition">
+          <button onclick="fetchPolicyData(true)" class="bg-red-700 hover:bg-red-800 text-white p-2 rounded-full text-xs flex items-center gap-1 transition">
             <i class="fas fa-sync-alt" id="syncIcon"></i> 동기화
           </button>
         </div>
@@ -94,7 +94,7 @@
     </div>
 
     <main class="max-w-md mx-auto px-4 pt-2 space-y-4">
-      <div id="loading" class="text-center py-8 text-slate-500 text-sm">
+      <div id="loading" class="text-center py-8 text-slate-500 text-sm hidden">
         <i class="fas fa-spinner fa-spin text-2xl text-red-600 mb-2"></i>
         <p id="loadingMsg">실시간 정책 로딩 중...</p>
       </div>
@@ -130,7 +130,7 @@
             <input type="text" id="invSearchInput" oninput="onInventorySearchChange()" placeholder="기종명/보유처 검색 (예: S94, 942, 서부센터)" class="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
           </div>
 
-          <!-- 2x2 동적 연동 드롭다운 필터 (담당, 지역, 용량, 색상) -->
+          <!-- 2x2 동적 연동 드롭다운 필터 -->
           <div class="grid grid-cols-2 gap-2 text-xs">
             <div>
               <select id="invManagerFilter" onchange="onInventorySearchChange()" class="w-full p-2 border rounded-lg bg-slate-50 text-slate-700 font-semibold focus:outline-none">
@@ -185,59 +185,90 @@
         window.scrollTo(0, 0);
       }
       
-      if (pageId === 'policy' && allPolicies.length === 0) {
-        fetchPolicyData();
+      if (pageId === 'policy') {
+        loadPolicyFromCacheOrFetch();
       } else if (pageId === 'inventory') {
-        if (allInventory.length === 0) {
-          fetchInventoryData(false);
-        } else {
-          renderInventory();
-        }
+        loadInventoryFromCacheOrFetch();
       }
     }
 
-    // --- 1. 정책 데이터 불러오기 ---
-    async function fetchPolicyData() {
+    // --- 1. 정책 스마트폰 캐시 및 비동기 업데이트 ---
+    function loadPolicyFromCacheOrFetch() {
+      try {
+        const cached = localStorage.getItem('skt_policy_cache');
+        if (cached) {
+          allPolicies = JSON.parse(cached);
+          renderPolicies();
+        }
+      } catch(e) {}
+
+      // 배경에서 최신 데이터 요청
+      fetchPolicyData(allPolicies.length === 0);
+    }
+
+    async function fetchPolicyData(showSpinner) {
       const syncIcon = document.getElementById('syncIcon');
       const loading = document.getElementById('loading');
       
       if (syncIcon) syncIcon.classList.add('fa-spin');
-      if (loading) loading.style.display = 'block';
+      if (showSpinner && loading) loading.classList.remove('hidden');
 
       try {
         const response = await fetch(GAS_URL + '?type=policy', { redirect: 'follow' });
         const data = await response.json();
 
         if (syncIcon) syncIcon.classList.remove('fa-spin');
-        if (loading) loading.style.display = 'none';
+        if (loading) loading.classList.add('hidden');
 
         if (data && data.policies && Array.isArray(data.policies)) {
           parseGasRows(data.policies);
           renderPolicies();
+          try {
+            localStorage.setItem('skt_policy_cache', JSON.stringify(allPolicies));
+          } catch(e) {}
         }
       } catch (err) {
         console.error('Policy error:', err);
         if (syncIcon) syncIcon.classList.remove('fa-spin');
-        const loadingMsg = document.getElementById('loadingMsg');
-        if (loadingMsg) loadingMsg.innerText = '정책 데이터 로딩 실패. 상단 버튼을 눌러주세요.';
+        if (loading) loading.classList.add('hidden');
       }
     }
 
-    // --- 2. 재고 데이터 불러오기 ---
-    async function fetchInventoryData(forceRefresh) {
+    // --- 2. 재고 스마트폰 로컬 저장소 0.01초 즉시 실행 ---
+    function loadInventoryFromCacheOrFetch() {
+      try {
+        const cachedInv = localStorage.getItem('skt_inv_cache');
+        const cachedTime = localStorage.getItem('skt_inv_time');
+
+        if (cachedInv) {
+          allInventory = JSON.parse(cachedInv);
+          populateManagerFilter();
+          updateDynamicFilters();
+          renderInventory();
+          if (cachedTime) {
+            document.getElementById('invTimeInfo').innerText = '저장된 재고 (' + cachedTime + ')';
+          }
+        }
+      } catch(e) {}
+
+      // 화면에 보여준 후 백그라운드에서 최신 데이터 가져옴
+      fetchInventoryData(allInventory.length === 0);
+    }
+
+    async function fetchInventoryData(showSpinner) {
       const invSyncIcon = document.getElementById('invSyncIcon');
       const invLoading = document.getElementById('invLoading');
       const invLoadingText = document.getElementById('invLoadingText');
       
       if (invSyncIcon) invSyncIcon.classList.add('fa-spin');
-      if (invLoading) invLoading.classList.remove('hidden');
-      if (invLoadingText) invLoadingText.innerText = '최신 재고 데이터 불러오는 중...';
+      if (showSpinner && invLoading) invLoading.classList.remove('hidden');
+      if (invLoadingText) invLoadingText.innerText = '최신 재고 데이터 동기화 중...';
 
       try {
         const response = await fetch(GAS_URL + '?type=inventory', { redirect: 'follow' });
         const data = await response.json();
 
-        if (syncIcon) invSyncIcon.classList.remove('fa-spin');
+        if (invSyncIcon) invSyncIcon.classList.remove('fa-spin');
         if (invLoading) invLoading.classList.add('hidden');
 
         if (data && data.inventory && Array.isArray(data.inventory)) {
@@ -248,21 +279,24 @@
 
           const nowStr = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
           document.getElementById('invTimeInfo').innerText = '동기화 완료 (' + nowStr + ')';
+
+          try {
+            localStorage.setItem('skt_inv_cache', JSON.stringify(allInventory));
+            localStorage.setItem('skt_inv_time', nowStr);
+          } catch(e) {}
         }
       } catch (err) {
         console.error('Inventory error:', err);
         if (invSyncIcon) invSyncIcon.classList.remove('fa-spin');
-        if (invLoadingText) invLoadingText.innerText = '동기화 실패. 상단 새로고침을 눌러주세요.';
+        if (invLoading) invLoading.classList.add('hidden');
       }
     }
 
-    // 날짜 스트링 정제 함수 (YYYY-MM-DD 형식 정돈 및 없으면 빈칸)
     function formatDateString(val) {
       if (!val) return '';
       let str = String(val).trim();
       if (!str || str === 'None' || str === 'null' || str === 'undefined' || str === '1899-12-30') return '';
 
-      // 2026-10-01 또는 2026/10/01 형태
       const reMatch = str.match(/(\d{4})[\.\-\/](\d{1,2})[\.\-\/](\d{1,2})/);
       if (reMatch) {
         const y = reMatch[1];
@@ -271,12 +305,11 @@
         return `${y}-${m}-${d}`;
       }
 
-      // Sat Sep 19 2026 ... 형태
       try {
         const dObj = new Date(str);
         if (!isNaN(dObj.getTime())) {
           const y = dObj.getFullYear();
-          if (y < 1970) return ''; // 유효하지 않은 기본 날짜 제외
+          if (y < 1970) return '';
           const m = String(dObj.getMonth() + 1).padStart(2, '0');
           const d = String(dObj.getDate()).padStart(2, '0');
           return `${y}-${m}-${d}`;
@@ -307,7 +340,7 @@
         if (!r || !Array.isArray(r)) continue;
 
         let manager = r[0] ? String(r[0]).trim() : '';
-        let region = r[1] ? String(r[1]).trim() : ''; // B열: 지역
+        let region = r[1] ? String(r[1]).trim() : '';
         let location = r[2] ? String(r[2]).trim() : '';
         let rawMoveDate = r[3] ? String(r[3]).trim() : '';
         let cleanMoveDate = formatDateString(rawMoveDate);
@@ -386,7 +419,6 @@
       updateDynamicColorFilter();
     }
 
-    // [개선] 기종 검색어 및 담당자에 맞춰 B열 지역(Region) 필터 동적 연동
     function updateDynamicRegionFilter() {
       const regionSelect = document.getElementById('invRegionFilter');
       if (!regionSelect) return;
@@ -700,7 +732,7 @@
     }
 
     window.onload = function() {
-      fetchPolicyData();
+      loadPolicyFromCacheOrFetch();
     };
   </script>
 </body>
