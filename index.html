@@ -127,7 +127,7 @@
         <div class="bg-white p-3 rounded-xl shadow-md border border-slate-200 space-y-3">
           <div class="relative">
             <i class="fas fa-search absolute left-3 top-3 text-slate-400"></i>
-            <input type="text" id="invSearchInput" oninput="onInventorySearchChange()" placeholder="기종명/보유처/일련번호 검색 (예: S94, 942, IP18)" class="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <input type="text" id="invSearchInput" oninput="onInventorySearchChange()" placeholder="기종명/보유처 검색 (예: S94, 942, 서부센터)" class="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
           </div>
 
           <div class="grid grid-cols-3 gap-2 text-xs">
@@ -217,7 +217,7 @@
       }
     }
 
-    // --- 2. 재고 데이터 초고속 불러오기 ---
+    // --- 2. 재고 데이터 불러오기 ---
     async function fetchInventoryData(forceRefresh) {
       const invSyncIcon = document.getElementById('invSyncIcon');
       const invLoading = document.getElementById('invLoading');
@@ -250,7 +250,6 @@
       }
     }
 
-    // 모델명 문자열에서 용량(128G, 256G, 512G, 1T 등) 추출
     function extractCapacity(modelName) {
       if (!modelName) return '기본용량';
       const upper = modelName.toUpperCase();
@@ -339,7 +338,6 @@
       renderInventory();
     }
 
-    // 기종 검색어 및 담당자에 맞춰 용량과 색상 옵션을 실시간 가변 조정
     function updateDynamicFilters() {
       updateDynamicCapacityFilter();
       updateDynamicColorFilter();
@@ -355,7 +353,8 @@
 
       const availableCaps = new Set();
       allInventory.forEach(item => {
-        if (rawSearch && !isMatch(item.modelName, rawSearch) && !isMatch(item.location, rawSearch) && !isMatch(item.serialNo, rawSearch)) return;
+        // [수정] 일련번호(serialNo) 검색은 오검색 방지를 위해 제외하고 모델명과 보유처만 비교
+        if (rawSearch && !isMatch(item.modelName, rawSearch) && !isMatch(item.location, rawSearch)) return;
         if (managerFilter !== 'ALL' && item.manager !== managerFilter) return;
 
         if (item.capacity) {
@@ -365,7 +364,6 @@
 
       capSelect.innerHTML = '<option value="ALL">용량 전체</option>';
       
-      // 정렬 순서: 기본용량, 64G, 128G, 256G, 512G, 1T
       const sortOrder = ['기본용량', '64G', '128G', '256G', '512G', '1T'];
       const sortedCaps = Array.from(availableCaps).sort((a, b) => {
         let ia = sortOrder.indexOf(a);
@@ -396,7 +394,8 @@
 
       const availableColors = new Set();
       allInventory.forEach(item => {
-        if (rawSearch && !isMatch(item.modelName, rawSearch) && !isMatch(item.location, rawSearch) && !isMatch(item.serialNo, rawSearch)) return;
+        // [수정] 일련번호(serialNo) 검색은 오검색 방지를 위해 제외
+        if (rawSearch && !isMatch(item.modelName, rawSearch) && !isMatch(item.location, rawSearch)) return;
         if (managerFilter !== 'ALL' && item.manager !== managerFilter) return;
         if (capFilter !== 'ALL' && item.capacity !== capFilter) return;
 
@@ -425,7 +424,8 @@
       if (!list) return;
 
       const filtered = allInventory.filter(item => {
-        if (rawSearch && !isMatch(item.modelName, rawSearch) && !isMatch(item.location, rawSearch) && !isMatch(item.serialNo, rawSearch)) return false;
+        // [수정] 재고 검색 필터링 조건에서 일련번호(serialNo) 제외하고 모델명과 보유처만 비교
+        if (rawSearch && !isMatch(item.modelName, rawSearch) && !isMatch(item.location, rawSearch)) return false;
         if (managerFilter !== 'ALL' && item.manager !== managerFilter) return false;
         if (capFilter !== 'ALL' && item.capacity !== capFilter) return false;
         if (colorFilter !== 'ALL' && item.color !== colorFilter) return false;
