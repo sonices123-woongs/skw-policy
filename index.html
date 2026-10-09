@@ -13,7 +13,7 @@
     .page-view.active { display: block; }
   </style>
 </head>
-<body class="pb-12">
+<body class="pb-12" onclick="closeRegionDropdownOnOutsideClick(event)">
 
   <!-- ================= 1. 홈 메인 화면 ================= -->
   <div id="page-home" class="page-view active min-h-screen">
@@ -130,21 +130,44 @@
           </div>
 
           <div class="grid grid-cols-2 gap-2 text-xs">
+            <!-- 1. 담당 필터 -->
             <div>
               <select id="invManagerFilter" onchange="onInventorySearchChange()" class="w-full p-2 border rounded-lg bg-slate-50 text-slate-700 font-semibold focus:outline-none">
                 <option value="ALL">담당 전체</option>
               </select>
             </div>
-            <div>
-              <select id="invRegionFilter" onchange="onRegionFilterChange()" class="w-full p-2 border rounded-lg bg-slate-50 text-slate-700 font-semibold focus:outline-none">
-                <option value="ALL">지역 전체</option>
-              </select>
+
+            <!-- 2. 지역 다중 선택 (체크박스 드롭다운) -->
+            <div class="relative" id="regionDropdownContainer">
+              <button onclick="toggleRegionDropdown(event)" type="button" class="w-full p-2 border rounded-lg bg-slate-50 text-slate-700 font-semibold text-left flex justify-between items-center focus:outline-none">
+                <span id="regionFilterBtnText" class="truncate">지역 전체</span>
+                <i class="fas fa-chevron-down text-slate-400 text-[10px] ml-1"></i>
+              </button>
+
+              <!-- 지역 체크박스 팝업 레이어 -->
+              <div id="regionMenu" class="hidden absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-56 overflow-y-auto p-2 space-y-1">
+                <div class="flex justify-between items-center pb-1 mb-1 border-b text-[11px] text-slate-500 font-bold px-1">
+                  <span>지역 다중 선택</span>
+                  <div class="space-x-1">
+                    <button type="button" onclick="selectAllRegions(true)" class="text-blue-600 hover:underline">전체선택</button>
+                    <span>|</span>
+                    <button type="button" onclick="selectAllRegions(false)" class="text-slate-400 hover:underline">해제</button>
+                  </div>
+                </div>
+                <div id="regionCheckboxList" class="space-y-1">
+                  <!-- 동적 체크박스 목록 생성 -->
+                </div>
+              </div>
             </div>
+
+            <!-- 3. 용량 필터 -->
             <div>
               <select id="invCapacityFilter" onchange="onCapacityFilterChange()" class="w-full p-2 border rounded-lg bg-slate-50 text-slate-700 font-semibold focus:outline-none">
                 <option value="ALL">용량 전체</option>
               </select>
             </div>
+
+            <!-- 4. 색상 필터 -->
             <div>
               <select id="invColorFilter" onchange="renderInventory()" class="w-full p-2 border rounded-lg bg-slate-50 text-slate-700 font-semibold focus:outline-none">
                 <option value="ALL">색상 전체</option>
@@ -174,6 +197,7 @@
     let allPolicies = [];
     let allInventory = [];
     let currentType = '010';
+    let selectedRegions = new Set(); // 다중 선택된 지역 정보 저장
 
     function showPage(pageId) {
       document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
@@ -249,9 +273,10 @@
           const nowStr = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
           document.getElementById('policyTimeInfo').innerText = '동기화 완료 (' + nowStr + ')';
 
-          // 로컬 캐시 저장
-          localStorage.setItem('cache_policies', JSON.stringify(allPolicies));
-          localStorage.setItem('cache_policies_time', nowStr);
+          try {
+            localStorage.setItem('cache_policies', JSON.stringify(allPolicies));
+            localStorage.setItem('cache_policies_time', nowStr);
+          } catch(e) {}
         }
       } catch (err) {
         console.error('Policy error:', err);
@@ -284,9 +309,10 @@
           const nowStr = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
           document.getElementById('invTimeInfo').innerText = '동기화 완료 (' + nowStr + ')';
 
-          // 로컬 캐시 저장
-          localStorage.setItem('cache_inventory', JSON.stringify(allInventory));
-          localStorage.setItem('cache_inventory_time', nowStr);
+          try {
+            localStorage.setItem('cache_inventory', JSON.stringify(allInventory));
+            localStorage.setItem('cache_inventory_time', nowStr);
+          } catch(e) {}
         }
       } catch (err) {
         console.error('Inventory error:', err);
@@ -405,12 +431,6 @@
       renderInventory();
     }
 
-    function onRegionFilterChange() {
-      updateDynamicCapacityFilter();
-      updateDynamicColorFilter();
-      renderInventory();
-    }
-
     function onCapacityFilterChange() {
       updateDynamicColorFilter();
       renderInventory();
@@ -422,13 +442,27 @@
       updateDynamicColorFilter();
     }
 
+    // --- 지역 체크박스 드롭다운 컨트롤 ---
+    function toggleRegionDropdown(e) {
+      if (e) e.stopPropagation();
+      const menu = document.getElementById('regionMenu');
+      if (menu) menu.classList.toggle('hidden');
+    }
+
+    function closeRegionDropdownOnOutsideClick(e) {
+      const container = document.getElementById('regionDropdownContainer');
+      const menu = document.getElementById('regionMenu');
+      if (container && menu && !container.contains(e.target)) {
+        menu.classList.add('hidden');
+      }
+    }
+
     function updateDynamicRegionFilter() {
-      const regionSelect = document.getElementById('invRegionFilter');
-      if (!regionSelect) return;
+      const listContainer = document.getElementById('regionCheckboxList');
+      if (!listContainer) return;
 
       const rawSearch = document.getElementById('invSearchInput').value.trim();
       const managerFilter = document.getElementById('invManagerFilter').value;
-      const prevSelectedRegion = regionSelect.value;
 
       const availableRegions = new Set();
       allInventory.forEach(item => {
@@ -440,15 +474,81 @@
         }
       });
 
-      regionSelect.innerHTML = '<option value="ALL">지역 전체</option>';
-      Array.from(availableRegions).sort().forEach(r => {
-        const isSelected = (r === prevSelectedRegion) ? 'selected' : '';
-        regionSelect.innerHTML += `<option value="${r}" ${isSelected}>${r}</option>`;
+      // 존재하지 않게 된 선택 지역은 제거
+      selectedRegions.forEach(r => {
+        if (!availableRegions.has(r)) selectedRegions.delete(r);
       });
 
-      if (prevSelectedRegion !== 'ALL' && !availableRegions.has(prevSelectedRegion)) {
-        regionSelect.value = 'ALL';
+      listContainer.innerHTML = '';
+      const sortedRegions = Array.from(availableRegions).sort();
+
+      if (sortedRegions.length === 0) {
+        listContainer.innerHTML = `<div class="text-xs text-slate-400 p-2 text-center">선택 가능한 지역 없음</div>`;
+      } else {
+        sortedRegions.forEach(r => {
+          const isChecked = selectedRegions.has(r) ? 'checked' : '';
+          listContainer.innerHTML += `
+            <label class="flex items-center gap-2 p-1 hover:bg-slate-50 rounded cursor-pointer text-xs text-slate-700">
+              <input type="checkbox" value="${r}" ${isChecked} onchange="onRegionCheckboxChange('${r}', this.checked)" class="rounded text-blue-600 focus:ring-blue-500">
+              <span>${r}</span>
+            </label>
+          `;
+        });
       }
+
+      updateRegionButtonText();
+    }
+
+    function onRegionCheckboxChange(regionName, isChecked) {
+      if (isChecked) {
+        selectedRegions.add(regionName);
+      } else {
+        selectedRegions.delete(regionName);
+      }
+
+      updateRegionButtonText();
+      updateDynamicCapacityFilter();
+      updateDynamicColorFilter();
+      renderInventory(); // 검색 버튼 클릭 필요 없이 즉시 결과 갱신
+    }
+
+    function selectAllRegions(doSelectAll) {
+      const checkboxes = document.querySelectorAll('#regionCheckboxList input[type="checkbox"]');
+      selectedRegions.clear();
+
+      checkboxes.forEach(cb => {
+        cb.checked = doSelectAll;
+        if (doSelectAll) {
+          selectedRegions.add(cb.value);
+        }
+      });
+
+      updateRegionButtonText();
+      updateDynamicCapacityFilter();
+      updateDynamicColorFilter();
+      renderInventory();
+    }
+
+    function updateRegionButtonText() {
+      const btnText = document.getElementById('regionFilterBtnText');
+      if (!btnText) return;
+
+      if (selectedRegions.size === 0) {
+        btnText.innerText = '지역 전체';
+        btnText.className = 'truncate text-slate-700 font-semibold';
+      } else if (selectedRegions.size === 1) {
+        btnText.innerText = Array.from(selectedRegions)[0];
+        btnText.className = 'truncate text-blue-600 font-bold';
+      } else {
+        const first = Array.from(selectedRegions)[0];
+        btnText.innerText = `${first} 외 ${selectedRegions.size - 1}개`;
+        btnText.className = 'truncate text-blue-600 font-bold';
+      }
+    }
+
+    function isRegionMatch(itemRegion) {
+      if (selectedRegions.size === 0) return true; // 아무것도 체크하지 않으면 '전체'로 처리
+      return selectedRegions.has(itemRegion);
     }
 
     function updateDynamicCapacityFilter() {
@@ -457,14 +557,13 @@
 
       const rawSearch = document.getElementById('invSearchInput').value.trim();
       const managerFilter = document.getElementById('invManagerFilter').value;
-      const regionFilter = document.getElementById('invRegionFilter').value;
       const prevSelectedCap = capSelect.value;
 
       const availableCaps = new Set();
       allInventory.forEach(item => {
         if (rawSearch && !isMatch(item.modelName, rawSearch) && !isMatch(item.location, rawSearch)) return;
         if (managerFilter !== 'ALL' && item.manager !== managerFilter) return;
-        if (regionFilter !== 'ALL' && item.region !== regionFilter) return;
+        if (!isRegionMatch(item.region)) return;
 
         if (item.capacity) {
           availableCaps.add(item.capacity);
@@ -498,7 +597,6 @@
 
       const rawSearch = document.getElementById('invSearchInput').value.trim();
       const managerFilter = document.getElementById('invManagerFilter').value;
-      const regionFilter = document.getElementById('invRegionFilter').value;
       const capFilter = document.getElementById('invCapacityFilter').value;
       const prevSelectedColor = colorSelect.value;
 
@@ -506,7 +604,7 @@
       allInventory.forEach(item => {
         if (rawSearch && !isMatch(item.modelName, rawSearch) && !isMatch(item.location, rawSearch)) return;
         if (managerFilter !== 'ALL' && item.manager !== managerFilter) return;
-        if (regionFilter !== 'ALL' && item.region !== regionFilter) return;
+        if (!isRegionMatch(item.region)) return;
         if (capFilter !== 'ALL' && item.capacity !== capFilter) return;
 
         if (item.color && item.color !== '색상' && item.color !== 'None') {
@@ -528,7 +626,6 @@
     function renderInventory() {
       const rawSearch = document.getElementById('invSearchInput').value.trim();
       const managerFilter = document.getElementById('invManagerFilter').value;
-      const regionFilter = document.getElementById('invRegionFilter').value;
       const capFilter = document.getElementById('invCapacityFilter').value;
       const colorFilter = document.getElementById('invColorFilter').value;
       const list = document.getElementById('inventoryList');
@@ -537,7 +634,7 @@
       const filtered = allInventory.filter(item => {
         if (rawSearch && !isMatch(item.modelName, rawSearch) && !isMatch(item.location, rawSearch)) return false;
         if (managerFilter !== 'ALL' && item.manager !== managerFilter) return false;
-        if (regionFilter !== 'ALL' && item.region !== regionFilter) return false;
+        if (!isRegionMatch(item.region)) return false; // 다중 선택된 지역 필터링
         if (capFilter !== 'ALL' && item.capacity !== capFilter) return false;
         if (colorFilter !== 'ALL' && item.color !== colorFilter) return false;
 
@@ -546,7 +643,7 @@
 
       document.getElementById('invCount').innerText = filtered.length;
       
-      const isFiltered = rawSearch || managerFilter !== 'ALL' || regionFilter !== 'ALL' || capFilter !== 'ALL' || colorFilter !== 'ALL';
+      const isFiltered = rawSearch || managerFilter !== 'ALL' || selectedRegions.size > 0 || capFilter !== 'ALL' || colorFilter !== 'ALL';
       const displayItems = isFiltered ? filtered : filtered.slice(0, 30);
 
       const limitMsg = document.getElementById('invLimitMsg');
@@ -735,11 +832,9 @@
     }
 
     window.onload = function() {
-      // 앱을 처음 열었을 때 미리 데이터를 로컬에서 불러와 보여줍니다.
       loadPolicyFromCache();
       loadInventoryFromCache();
       
-      // 최신 데이터를 백그라운드에서 백엔드 동기화
       fetchPolicyData(false);
       fetchInventoryData(false);
     };
