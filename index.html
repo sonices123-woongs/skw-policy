@@ -126,7 +126,7 @@
         <div class="bg-white p-3 rounded-xl shadow-md border border-slate-200 space-y-3">
           <div class="relative">
             <i class="fas fa-search absolute left-3 top-3 text-slate-400"></i>
-            <input type="text" id="invSearchInput" oninput="onInventorySearchChange()" placeholder="기종명/보유처 검색 (예: S94, 942, 서부센터)" class="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <input type="text" id="invSearchInput" oninput="onInventorySearchChange()" placeholder="기종명/보유처/일련번호(4자리↑) 검색" class="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
           </div>
 
           <div class="grid grid-cols-2 gap-2 text-xs">
@@ -193,7 +193,8 @@
 
 
   <script>
-    const GAS_URL = 'https://script.google.com/macros/s/AKfycbw8wPAJ8fYc5tSFgVRV_DGb_G0wIM0IKRLBH-sx0uGVGgvwO8ULaPthgw6BZPsgnKuK0w/exec';
+    // 새로 배포하신 최신 구글 앱스 스크립트 웹 앱 URL로 반영 완료
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbzMl1BC6lymurTb8kmy84xBPl7tG1dfKUBFVsHCBCYT5zkyM1NNNDCa3sfAyxWf9Dd0PA/exec';
     let allPolicies = [];
     let allInventory = [];
     let currentType = '010';
@@ -377,10 +378,16 @@
         let modelName = r[4] ? String(r[4]).trim() : '';
         let color = r[5] ? String(r[5]).trim() : '';
         let serialNo = r[6] ? String(r[6]).trim() : '';
+        let note = r[7] ? String(r[7]).trim() : ''; // H열 비고 추가
 
         if (!modelName || modelName === '대표모델명' || modelName === 'None') continue;
 
         let detectedCap = extractCapacity(modelName);
+
+        // '0', 'None' 등 무의미한 값 숨김 처리
+        if (note === '0' || note === 'None' || note === 'null' || note === 'undefined') {
+          note = '';
+        }
 
         allInventory.push({
           manager: manager,
@@ -390,7 +397,8 @@
           modelName: modelName,
           capacity: detectedCap,
           color: color,
-          serialNo: serialNo
+          serialNo: serialNo,
+          note: note // 비고 데이터 추가
         });
       }
 
@@ -424,6 +432,24 @@
       const cleanText = String(text).toLowerCase().replace(/[\s\-_]/g, '');
       const cleanQuery = String(query).toLowerCase().replace(/[\s\-_]/g, '');
       return cleanText.includes(cleanQuery);
+    }
+
+    // --- 기종명/보유처/일련번호 매칭검사 (4자리 이상 제약 적용) ---
+    function isInventoryMatch(item, query) {
+      if (!query) return true;
+      const cleanQuery = query.toLowerCase().replace(/[\s\-_]/g, '');
+      
+      // 1. 기종명 또는 보유처 매칭 (1자 이상 항상 즉시 검색)
+      if (isMatch(item.modelName, cleanQuery) || isMatch(item.location, cleanQuery)) {
+        return true;
+      }
+
+      // 2. 일련번호 매칭 (검색어가 4자리 이상일 때만 활성화)
+      if (cleanQuery.length >= 4 && isMatch(item.serialNo, cleanQuery)) {
+        return true;
+      }
+
+      return false;
     }
 
     function onInventorySearchChange() {
@@ -466,7 +492,7 @@
 
       const availableRegions = new Set();
       allInventory.forEach(item => {
-        if (rawSearch && !isMatch(item.modelName, rawSearch) && !isMatch(item.location, rawSearch)) return;
+        if (rawSearch && !isInventoryMatch(item, rawSearch)) return;
         if (managerFilter !== 'ALL' && item.manager !== managerFilter) return;
 
         if (item.region && item.region !== '지역' && item.region !== 'None') {
@@ -509,7 +535,7 @@
       updateRegionButtonText();
       updateDynamicCapacityFilter();
       updateDynamicColorFilter();
-      renderInventory(); // 검색 버튼 클릭 필요 없이 즉시 결과 갱신
+      renderInventory();
     }
 
     function selectAllRegions(doSelectAll) {
@@ -547,7 +573,7 @@
     }
 
     function isRegionMatch(itemRegion) {
-      if (selectedRegions.size === 0) return true; // 아무것도 체크하지 않으면 '전체'로 처리
+      if (selectedRegions.size === 0) return true;
       return selectedRegions.has(itemRegion);
     }
 
@@ -561,7 +587,7 @@
 
       const availableCaps = new Set();
       allInventory.forEach(item => {
-        if (rawSearch && !isMatch(item.modelName, rawSearch) && !isMatch(item.location, rawSearch)) return;
+        if (rawSearch && !isInventoryMatch(item, rawSearch)) return;
         if (managerFilter !== 'ALL' && item.manager !== managerFilter) return;
         if (!isRegionMatch(item.region)) return;
 
@@ -602,7 +628,7 @@
 
       const availableColors = new Set();
       allInventory.forEach(item => {
-        if (rawSearch && !isMatch(item.modelName, rawSearch) && !isMatch(item.location, rawSearch)) return;
+        if (rawSearch && !isInventoryMatch(item, rawSearch)) return;
         if (managerFilter !== 'ALL' && item.manager !== managerFilter) return;
         if (!isRegionMatch(item.region)) return;
         if (capFilter !== 'ALL' && item.capacity !== capFilter) return;
@@ -632,9 +658,9 @@
       if (!list) return;
 
       const filtered = allInventory.filter(item => {
-        if (rawSearch && !isMatch(item.modelName, rawSearch) && !isMatch(item.location, rawSearch)) return false;
+        if (rawSearch && !isInventoryMatch(item, rawSearch)) return false;
         if (managerFilter !== 'ALL' && item.manager !== managerFilter) return false;
-        if (!isRegionMatch(item.region)) return false; // 다중 선택된 지역 필터링
+        if (!isRegionMatch(item.region)) return false;
         if (capFilter !== 'ALL' && item.capacity !== capFilter) return false;
         if (colorFilter !== 'ALL' && item.color !== colorFilter) return false;
 
@@ -661,6 +687,7 @@
       let htmlBuffer = '';
       displayItems.forEach(item => {
         const moveDateText = item.moveDate ? `입고일: ${item.moveDate}` : '';
+        const noteBadge = item.note ? `<span class="text-[10px] font-bold bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded border border-amber-200">비고: ${item.note}</span>` : '';
 
         htmlBuffer += `
           <div class="bg-white p-3.5 rounded-xl shadow-sm border border-slate-200 space-y-2">
@@ -668,6 +695,7 @@
               <div class="flex items-center gap-1.5 flex-wrap">
                 <span class="text-xs font-bold bg-blue-50 text-blue-700 px-2 py-0.5 rounded">${item.modelName}</span>
                 <span class="text-xs font-semibold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">${item.color || '기본색상'}</span>
+                ${noteBadge}
               </div>
               <div class="text-[11px] text-slate-400 font-mono">
                 S/N: <strong class="text-slate-600">${item.serialNo || '-'}</strong>
