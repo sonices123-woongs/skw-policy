@@ -179,10 +179,25 @@
     </div>
 
     <main class="max-w-md mx-auto px-4 pt-2 space-y-4">
+      <!-- 조회 결과 및 정렬 드롭다운 영역 -->
       <div id="invSummary" class="text-xs text-slate-500 font-bold px-1 flex justify-between items-center">
-        <span>조회 결과: <strong id="invCount" class="text-blue-600">0</strong>건 <span id="invLimitMsg" class="text-[10px] text-slate-400 font-normal"></span></span>
-        <span id="invTimeInfo" class="text-[10px] text-slate-400 font-normal"></span>
+        <div class="flex items-center gap-1">
+          <span>조회: <strong id="invCount" class="text-blue-600">0</strong>건</span>
+          <span id="invLimitMsg" class="text-[10px] text-slate-400 font-normal"></span>
+        </div>
+        
+        <!-- 모델명, 색상 정렬 옵션 -->
+        <div class="flex items-center gap-1">
+          <select id="invSortFilter" onchange="renderInventory()" class="p-1 px-2 border rounded-md bg-white text-slate-700 text-[11px] font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500 border-slate-300 shadow-sm">
+            <option value="DEFAULT">기본 정렬</option>
+            <option value="MODEL_ASC">모델명 (가나다순)</option>
+            <option value="MODEL_DESC">모델명 (다나가순)</option>
+            <option value="COLOR_ASC">색상 (가나다순)</option>
+            <option value="COLOR_DESC">색상 (다나가순)</option>
+          </select>
+        </div>
       </div>
+
       <div id="invLoading" class="text-center py-8 text-slate-500 text-sm hidden">
         <i class="fas fa-spinner fa-spin text-2xl text-blue-600 mb-2"></i>
         <p id="invLoadingText">최신 재고 데이터 불러오는 중...</p>
@@ -193,12 +208,11 @@
 
 
   <script>
-    // 새로 배포하신 최신 구글 앱스 스크립트 웹 앱 URL로 반영 완료
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbzMl1BC6lymurTb8kmy84xBPl7tG1dfKUBFVsHCBCYT5zkyM1NNNDCa3sfAyxWf9Dd0PA/exec';
     let allPolicies = [];
     let allInventory = [];
     let currentType = '010';
-    let selectedRegions = new Set(); // 다중 선택된 지역 정보 저장
+    let selectedRegions = new Set();
 
     function showPage(pageId) {
       document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
@@ -247,7 +261,6 @@
           populateManagerFilter();
           updateDynamicFilters();
           renderInventory();
-          if (time) document.getElementById('invTimeInfo').innerText = '저장된 데이터 (' + time + ')';
         } catch(e) {}
       }
     }
@@ -308,7 +321,6 @@
           renderInventory();
 
           const nowStr = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
-          document.getElementById('invTimeInfo').innerText = '동기화 완료 (' + nowStr + ')';
 
           try {
             localStorage.setItem('cache_inventory', JSON.stringify(allInventory));
@@ -378,13 +390,12 @@
         let modelName = r[4] ? String(r[4]).trim() : '';
         let color = r[5] ? String(r[5]).trim() : '';
         let serialNo = r[6] ? String(r[6]).trim() : '';
-        let note = r[7] ? String(r[7]).trim() : ''; // H열 비고 추가
+        let note = r[7] ? String(r[7]).trim() : '';
 
         if (!modelName || modelName === '대표모델명' || modelName === 'None') continue;
 
         let detectedCap = extractCapacity(modelName);
 
-        // '0', 'None' 등 무의미한 값 숨김 처리
         if (note === '0' || note === 'None' || note === 'null' || note === 'undefined') {
           note = '';
         }
@@ -398,7 +409,7 @@
           capacity: detectedCap,
           color: color,
           serialNo: serialNo,
-          note: note // 비고 데이터 추가
+          note: note
         });
       }
 
@@ -434,17 +445,14 @@
       return cleanText.includes(cleanQuery);
     }
 
-    // --- 기종명/보유처/일련번호 매칭검사 (4자리 이상 제약 적용) ---
     function isInventoryMatch(item, query) {
       if (!query) return true;
       const cleanQuery = query.toLowerCase().replace(/[\s\-_]/g, '');
       
-      // 1. 기종명 또는 보유처 매칭 (1자 이상 항상 즉시 검색)
       if (isMatch(item.modelName, cleanQuery) || isMatch(item.location, cleanQuery)) {
         return true;
       }
 
-      // 2. 일련번호 매칭 (검색어가 4자리 이상일 때만 활성화)
       if (cleanQuery.length >= 4 && isMatch(item.serialNo, cleanQuery)) {
         return true;
       }
@@ -468,7 +476,6 @@
       updateDynamicColorFilter();
     }
 
-    // --- 지역 체크박스 드롭다운 컨트롤 ---
     function toggleRegionDropdown(e) {
       if (e) e.stopPropagation();
       const menu = document.getElementById('regionMenu');
@@ -500,7 +507,6 @@
         }
       });
 
-      // 존재하지 않게 된 선택 지역은 제거
       selectedRegions.forEach(r => {
         if (!availableRegions.has(r)) selectedRegions.delete(r);
       });
@@ -654,10 +660,11 @@
       const managerFilter = document.getElementById('invManagerFilter').value;
       const capFilter = document.getElementById('invCapacityFilter').value;
       const colorFilter = document.getElementById('invColorFilter').value;
+      const sortFilter = document.getElementById('invSortFilter') ? document.getElementById('invSortFilter').value : 'DEFAULT';
       const list = document.getElementById('inventoryList');
       if (!list) return;
 
-      const filtered = allInventory.filter(item => {
+      let filtered = allInventory.filter(item => {
         if (rawSearch && !isInventoryMatch(item, rawSearch)) return false;
         if (managerFilter !== 'ALL' && item.manager !== managerFilter) return false;
         if (!isRegionMatch(item.region)) return false;
@@ -667,14 +674,25 @@
         return true;
       });
 
+      // --- 정렬 로직 적용 ---
+      if (sortFilter === 'MODEL_ASC') {
+        filtered.sort((a, b) => a.modelName.localeCompare(b.modelName, 'ko'));
+      } else if (sortFilter === 'MODEL_DESC') {
+        filtered.sort((a, b) => b.modelName.localeCompare(a.modelName, 'ko'));
+      } else if (sortFilter === 'COLOR_ASC') {
+        filtered.sort((a, b) => a.color.localeCompare(b.color, 'ko'));
+      } else if (sortFilter === 'COLOR_DESC') {
+        filtered.sort((a, b) => b.color.localeCompare(a.color, 'ko'));
+      }
+
       document.getElementById('invCount').innerText = filtered.length;
       
-      const isFiltered = rawSearch || managerFilter !== 'ALL' || selectedRegions.size > 0 || capFilter !== 'ALL' || colorFilter !== 'ALL';
+      const isFiltered = rawSearch || managerFilter !== 'ALL' || selectedRegions.size > 0 || capFilter !== 'ALL' || colorFilter !== 'ALL' || sortFilter !== 'DEFAULT';
       const displayItems = isFiltered ? filtered : filtered.slice(0, 30);
 
       const limitMsg = document.getElementById('invLimitMsg');
       if (limitMsg) {
-        limitMsg.innerText = (!isFiltered && filtered.length > 30) ? '(상위 30개 표시 중 - 검색 시 전체 조회)' : '';
+        limitMsg.innerText = (!isFiltered && filtered.length > 30) ? '(상위 30개 표시 중)' : '';
       }
 
       list.innerHTML = '';
