@@ -185,7 +185,18 @@
               </select>
             </div>
 
-            <!-- 5. 범례 안내 (3개월/6개월 장기재고 색상안내) -->
+            <!-- 🔥 5. 정렬 기준 드롭다운 (재추가됨) -->
+            <div class="col-span-2 pt-1 border-t border-slate-100 flex items-center justify-between">
+              <span class="text-slate-500 font-bold text-[11px]"><i class="fas fa-sort text-blue-500 mr-1"></i>정렬 기준:</span>
+              <select id="invSortFilter" onchange="renderInventory()" class="w-2/3 p-1.5 border rounded-lg bg-blue-50 text-blue-800 font-bold focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs">
+                <option value="REGION_ASC">지역별 정렬 (지역1차 → 색상2차)</option>
+                <option value="DEFAULT">기본 정렬 (담당/지역/매장순)</option>
+                <option value="MODEL_ASC">대표모델명 정렬</option>
+                <option value="COLOR_ASC">색상 정렬</option>
+              </select>
+            </div>
+
+            <!-- 6. 범례 안내 (3개월/6개월 장기재고 색상안내) -->
             <div class="col-span-2 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
               <span class="text-slate-500 font-bold"><i class="fas fa-clock text-blue-500 mr-1"></i>입고 경과:</span>
               <div class="flex items-center gap-2">
@@ -228,7 +239,6 @@
     let currentType = '010';
     let selectedRegions = new Set();
 
-    // 페이지 전환 함수
     function showPage(pageId) {
       document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
       const target = document.getElementById(`page-${pageId}`);
@@ -678,23 +688,6 @@
       }
     }
 
-    // [지역 1차 정렬 -> 색상 2차 정렬]
-    function sortInventoryByRegionAndColor(list) {
-      return list.sort((a, b) => {
-        let regionA = a.region || "";
-        let regionB = b.region || "";
-        let regionCompare = regionA.localeCompare(regionB, 'ko');
-        
-        if (regionCompare !== 0) {
-          return regionCompare;
-        }
-        
-        let colorA = a.color || "";
-        let colorB = b.color || "";
-        return colorA.localeCompare(colorB, 'ko');
-      });
-    }
-
     function renderInventory() {
       const searchElem = document.getElementById('invSearchInput');
       const rawSearch = searchElem ? searchElem.value.trim() : '';
@@ -704,6 +697,8 @@
       const capFilter = capElem ? capElem.value : 'ALL';
       const colorElem = document.getElementById('invColorFilter');
       const colorFilter = colorElem ? colorElem.value : 'ALL';
+      const sortElem = document.getElementById('invSortFilter');
+      const sortFilter = sortElem ? sortElem.value : 'REGION_ASC';
       
       const list = document.getElementById('inventoryList');
       if (!list) return;
@@ -720,8 +715,24 @@
         return true;
       });
 
-      // 무조건 [지역 1차 -> 색상 2차] 정렬
-      filtered = sortInventoryByRegionAndColor(filtered);
+      // 선택된 정렬 방식에 따라 정렬 수행
+      if (sortFilter === 'REGION_ASC') {
+        filtered.sort((a, b) => {
+          let regCompare = (a.region || "").localeCompare(b.region || "", 'ko');
+          if (regCompare !== 0) return regCompare;
+          return (a.color || "").localeCompare(b.color || "", 'ko');
+        });
+      } else if (sortFilter === 'MODEL_ASC') {
+        filtered.sort((a, b) => (a.modelName || "").localeCompare(b.modelName || "", 'ko'));
+      } else if (sortFilter === 'COLOR_ASC') {
+        filtered.sort((a, b) => (a.color || "").localeCompare(b.color || "", 'ko'));
+      } else { // DEFAULT (담당 -> 지역 -> 매장)
+        filtered.sort((a, b) => {
+          if (a.manager !== b.manager) return (a.manager || "").localeCompare(b.manager || "", 'ko');
+          if (a.region !== b.region) return (a.region || "").localeCompare(b.region || "", 'ko');
+          return (a.location || "").localeCompare(b.location || "", 'ko');
+        });
+      }
 
       const countElem = document.getElementById('invCount');
       if (countElem) countElem.innerText = filtered.length;
