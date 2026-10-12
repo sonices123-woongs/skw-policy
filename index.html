@@ -228,7 +228,6 @@
     let currentType = '010';
     let selectedRegions = new Set();
 
-    // 페이지 전환 핵심 함수
     function showPage(pageId) {
       document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
       const target = document.getElementById(`page-${pageId}`);
@@ -254,7 +253,6 @@
       }
     }
 
-    // --- 캐시 로드 함수 ---
     function loadPolicyFromCache() {
       const cached = localStorage.getItem('cache_policies');
       const time = localStorage.getItem('cache_policies_time');
@@ -262,7 +260,10 @@
         try {
           allPolicies = JSON.parse(cached);
           renderPolicies();
-          if (time) document.getElementById('policyTimeInfo').innerText = '저장된 데이터 (' + time + ')';
+          if (time) {
+            const timeElem = document.getElementById('policyTimeInfo');
+            if (timeElem) timeElem.innerText = '저장된 데이터 (' + time + ')';
+          }
         } catch(e) {}
       }
     }
@@ -276,12 +277,14 @@
           populateManagerFilter();
           updateDynamicFilters();
           renderInventory();
-          if (time) document.getElementById('invTimeInfo').innerText = '동기화 완료 (' + time + ')';
+          if (time) {
+            const timeElem = document.getElementById('invTimeInfo');
+            if (timeElem) timeElem.innerText = '동기화 완료 (' + time + ')';
+          }
         } catch(e) {}
       }
     }
 
-    // --- 1. 정책 데이터 불러오기 ---
     async function fetchPolicyData(isManualSync = false) {
       const syncIcon = document.getElementById('syncIcon');
       const loading = document.getElementById('loading');
@@ -301,7 +304,8 @@
           renderPolicies();
 
           const nowStr = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
-          document.getElementById('policyTimeInfo').innerText = '동기화 완료 (' + nowStr + ')';
+          const timeElem = document.getElementById('policyTimeInfo');
+          if (timeElem) timeElem.innerText = '동기화 완료 (' + nowStr + ')';
 
           try {
             localStorage.setItem('cache_policies', JSON.stringify(allPolicies));
@@ -315,7 +319,6 @@
       }
     }
 
-    // --- 2. 재고 데이터 불러오기 ---
     async function fetchInventoryData(isManualSync = false) {
       const invSyncIcon = document.getElementById('invSyncIcon');
       const invLoading = document.getElementById('invLoading');
@@ -337,7 +340,8 @@
           renderInventory();
 
           const nowStr = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
-          document.getElementById('invTimeInfo').innerText = '동기화 완료 (' + nowStr + ')';
+          const timeElem = document.getElementById('invTimeInfo');
+          if (timeElem) timeElem.innerText = '동기화 완료 (' + nowStr + ')';
 
           try {
             localStorage.setItem('cache_inventory', JSON.stringify(allInventory));
@@ -505,8 +509,10 @@
       const listContainer = document.getElementById('regionCheckboxList');
       if (!listContainer) return;
 
-      const rawSearch = document.getElementById('invSearchInput').value.trim();
-      const managerFilter = document.getElementById('invManagerFilter').value;
+      const searchElem = document.getElementById('invSearchInput');
+      const rawSearch = searchElem ? searchElem.value.trim() : '';
+      const managerElem = document.getElementById('invManagerFilter');
+      const managerFilter = managerElem ? managerElem.value : 'ALL';
 
       const availableRegions = new Set();
       allInventory.forEach(item => {
@@ -598,8 +604,10 @@
       const capSelect = document.getElementById('invCapacityFilter');
       if (!capSelect) return;
 
-      const rawSearch = document.getElementById('invSearchInput').value.trim();
-      const managerFilter = document.getElementById('invManagerFilter').value;
+      const searchElem = document.getElementById('invSearchInput');
+      const rawSearch = searchElem ? searchElem.value.trim() : '';
+      const managerElem = document.getElementById('invManagerFilter');
+      const managerFilter = managerElem ? managerElem.value : 'ALL';
       const prevSelectedCap = capSelect.value;
 
       const availableCaps = new Set();
@@ -638,9 +646,12 @@
       const colorSelect = document.getElementById('invColorFilter');
       if (!colorSelect) return;
 
-      const rawSearch = document.getElementById('invSearchInput').value.trim();
-      const managerFilter = document.getElementById('invManagerFilter').value;
-      const capFilter = document.getElementById('invCapacityFilter').value;
+      const searchElem = document.getElementById('invSearchInput');
+      const rawSearch = searchElem ? searchElem.value.trim() : '';
+      const managerElem = document.getElementById('invManagerFilter');
+      const managerFilter = managerElem ? managerElem.value : 'ALL';
+      const capElem = document.getElementById('invCapacityFilter');
+      const capFilter = capElem ? capElem.value : 'ALL';
       const prevSelectedColor = colorSelect.value;
 
       const availableColors = new Set();
@@ -666,7 +677,7 @@
       }
     }
 
-    // 지역 1차 정렬 -> 색상 2차 정렬 함수
+    // 지역 1차 정렬 -> 색상 2차 정렬 함수 (대표모델 정렬 완전 제거)
     function sortInventoryByRegionAndColor(list) {
       return list.sort((a, b) => {
         let regionA = a.region || "";
@@ -684,10 +695,15 @@
     }
 
     function renderInventory() {
-      const rawSearch = document.getElementById('invSearchInput').value.trim();
-      const managerFilter = document.getElementById('invManagerFilter').value;
-      const capFilter = document.getElementById('invCapacityFilter').value;
-      const colorFilter = document.getElementById('invColorFilter').value;
+      const searchElem = document.getElementById('invSearchInput');
+      const rawSearch = searchElem ? searchElem.value.trim() : '';
+      const managerElem = document.getElementById('invManagerFilter');
+      const managerFilter = managerElem ? managerElem.value : 'ALL';
+      const capElem = document.getElementById('invCapacityFilter');
+      const capFilter = capElem ? capElem.value : 'ALL';
+      const colorElem = document.getElementById('invColorFilter');
+      const colorFilter = colorElem ? colorElem.value : 'ALL';
+      
       const list = document.getElementById('inventoryList');
       if (!list) return;
 
@@ -703,9 +719,11 @@
         return true;
       });
 
+      // 무조건 [지역 1차 -> 색상 2차] 정렬 수행
       filtered = sortInventoryByRegionAndColor(filtered);
 
-      document.getElementById('invCount').innerText = filtered.length;
+      const countElem = document.getElementById('invCount');
+      if (countElem) countElem.innerText = filtered.length;
       
       const displayItems = isFiltered ? filtered : filtered.slice(0, 30);
 
