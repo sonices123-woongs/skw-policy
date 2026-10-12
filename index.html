@@ -175,15 +175,13 @@
               </select>
             </div>
 
-            <!-- 5. 정렬 기준 (필터 상자 내부에 추가되어 확실하게 보임) -->
+            <!-- 5. 정렬 기준 (검색 시만 적용) -->
             <div class="col-span-2 pt-1 border-t border-slate-100 flex items-center justify-between">
               <span class="text-slate-500 font-bold text-[11px]"><i class="fas fa-sort text-blue-500 mr-1"></i>정렬 기준:</span>
               <select id="invSortFilter" onchange="renderInventory()" class="w-2/3 p-1.5 border rounded-lg bg-blue-50 text-blue-800 font-bold focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs">
                 <option value="DEFAULT">기본 정렬 (담당/지역/매장순)</option>
-                <option value="MODEL_ASC">대표모델명 (가나다순)</option>
-                <option value="MODEL_DESC">대표모델명 (다나가순)</option>
-                <option value="COLOR_ASC">색상 (가나다순)</option>
-                <option value="COLOR_DESC">색상 (다나가순)</option>
+                <option value="MODEL_ASC">대표모델명 정렬</option>
+                <option value="COLOR_ASC">색상 정렬</option>
               </select>
             </div>
           </div>
@@ -669,6 +667,9 @@
       const list = document.getElementById('inventoryList');
       if (!list) return;
 
+      // 필터링 적용 여부 체크
+      const isFiltered = rawSearch || managerFilter !== 'ALL' || selectedRegions.size > 0 || capFilter !== 'ALL' || colorFilter !== 'ALL';
+
       let filtered = allInventory.filter(item => {
         if (rawSearch && !isInventoryMatch(item, rawSearch)) return false;
         if (managerFilter !== 'ALL' && item.manager !== managerFilter) return false;
@@ -679,25 +680,22 @@
         return true;
       });
 
-      // --- 정렬 기능 수행 ---
-      if (sortFilter === 'MODEL_ASC') {
-        filtered.sort((a, b) => a.modelName.localeCompare(b.modelName, 'ko'));
-      } else if (sortFilter === 'MODEL_DESC') {
-        filtered.sort((a, b) => b.modelName.localeCompare(a.modelName, 'ko'));
-      } else if (sortFilter === 'COLOR_ASC') {
-        filtered.sort((a, b) => a.color.localeCompare(b.color, 'ko'));
-      } else if (sortFilter === 'COLOR_DESC') {
-        filtered.sort((a, b) => b.color.localeCompare(a.color, 'ko'));
+      // 🔥 [핵심 수정] 검색/필터링 조건이 적용된 경우에만 정렬 실행 (초기 상태에서 정렬시 런타임 방지)
+      if (isFiltered && sortFilter !== 'DEFAULT') {
+        if (sortFilter === 'MODEL_ASC') {
+          filtered.sort((a, b) => a.modelName.localeCompare(b.modelName, 'ko'));
+        } else if (sortFilter === 'COLOR_ASC') {
+          filtered.sort((a, b) => a.color.localeCompare(b.color, 'ko'));
+        }
       }
 
       document.getElementById('invCount').innerText = filtered.length;
       
-      const isFiltered = rawSearch || managerFilter !== 'ALL' || selectedRegions.size > 0 || capFilter !== 'ALL' || colorFilter !== 'ALL' || sortFilter !== 'DEFAULT';
       const displayItems = isFiltered ? filtered : filtered.slice(0, 30);
 
       const limitMsg = document.getElementById('invLimitMsg');
       if (limitMsg) {
-        limitMsg.innerText = (!isFiltered && filtered.length > 30) ? '(상위 30개 표시 중)' : '';
+        limitMsg.innerText = (!isFiltered && filtered.length > 30) ? '(상위 30개 표시 중 - 검색 시 전체 조회)' : '';
       }
 
       list.innerHTML = '';
