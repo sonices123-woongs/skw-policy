@@ -185,13 +185,12 @@
               </select>
             </div>
 
-            <!-- 5. 정렬 기준 드롭다운 (입고 경과 안내창 대신 복구) -->
+            <!-- 5. 정렬 기준 드롭다운 (대표모델명 삭제 및 지역별 정렬 명칭 변경) -->
             <div class="col-span-2 pt-2 border-t border-slate-100 flex items-center justify-between">
               <span class="text-slate-500 font-bold text-[11px]"><i class="fas fa-sort text-blue-500 mr-1"></i>정렬 기준:</span>
               <select id="invSortFilter" onchange="renderInventory()" class="w-2/3 p-1.5 border rounded-lg bg-blue-50 text-blue-800 font-bold focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs">
-                <option value="REGION_ASC">지역별 정렬 (지역1차 → 색상2차)</option>
                 <option value="DEFAULT">기본 정렬 (담당/지역/매장순)</option>
-                <option value="MODEL_ASC">대표모델명 정렬</option>
+                <option value="REGION_ASC">지역별 정렬</option>
                 <option value="COLOR_ASC">색상 정렬</option>
               </select>
             </div>
@@ -685,7 +684,7 @@
       const colorElem = document.getElementById('invColorFilter');
       const colorFilter = colorElem ? colorElem.value : 'ALL';
       const sortElem = document.getElementById('invSortFilter');
-      const sortFilter = sortElem ? sortElem.value : 'REGION_ASC';
+      const sortFilter = sortElem ? sortElem.value : 'DEFAULT';
       
       const list = document.getElementById('inventoryList');
       if (!list) return;
@@ -703,15 +702,13 @@
       });
 
       // 선택된 정렬 옵션에 따라 정렬 수행
-      if (sortFilter === 'REGION_ASC') {
+      if (sortFilter === 'REGION_ASC') { // 지역별 정렬 (지역1차 -> 색상2차)
         filtered.sort((a, b) => {
           let regCompare = (a.region || "").localeCompare(b.region || "", 'ko');
           if (regCompare !== 0) return regCompare;
           return (a.color || "").localeCompare(b.color || "", 'ko');
         });
-      } else if (sortFilter === 'MODEL_ASC') {
-        filtered.sort((a, b) => (a.modelName || "").localeCompare(b.modelName || "", 'ko'));
-      } else if (sortFilter === 'COLOR_ASC') {
+      } else if (sortFilter === 'COLOR_ASC') { // 색상 정렬
         filtered.sort((a, b) => (a.color || "").localeCompare(b.color || "", 'ko'));
       } else { // DEFAULT (담당 -> 지역 -> 매장)
         filtered.sort((a, b) => {
