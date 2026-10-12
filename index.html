@@ -179,22 +179,23 @@
     </div>
 
     <main class="max-w-md mx-auto px-4 pt-2 space-y-4">
-      <!-- 조회 결과 및 정렬 드롭다운 영역 -->
-      <div id="invSummary" class="text-xs text-slate-500 font-bold px-1 flex justify-between items-center">
-        <div class="flex items-center gap-1">
-          <span>조회: <strong id="invCount" class="text-blue-600">0</strong>건</span>
-          <span id="invLimitMsg" class="text-[10px] text-slate-400 font-normal"></span>
-        </div>
-        
-        <!-- 모델명, 색상 정렬 옵션 -->
-        <div class="flex items-center gap-1">
-          <select id="invSortFilter" onchange="renderInventory()" class="p-1 px-2 border rounded-md bg-white text-slate-700 text-[11px] font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500 border-slate-300 shadow-sm">
+      <!-- [수정된 부분] 조회 결과 및 정렬 드롭다운 배치 -->
+      <div id="invSummary" class="text-xs text-slate-500 font-bold px-1 flex justify-between items-center flex-wrap gap-2">
+        <div class="flex items-center gap-2">
+          <span>조회 결과: <strong id="invCount" class="text-blue-600">0</strong>건</span>
+          <!-- 바로 옆 정렬 드롭다운 배치 -->
+          <select id="invSortFilter" onchange="renderInventory()" class="p-1 px-2 border rounded-lg bg-white text-slate-700 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500 border-slate-300 shadow-sm cursor-pointer">
             <option value="DEFAULT">기본 정렬</option>
             <option value="MODEL_ASC">모델명 (가나다순)</option>
             <option value="MODEL_DESC">모델명 (다나가순)</option>
             <option value="COLOR_ASC">색상 (가나다순)</option>
             <option value="COLOR_DESC">색상 (다나가순)</option>
           </select>
+        </div>
+        
+        <div class="flex items-center gap-1 text-[10px] text-slate-400 font-normal">
+          <span id="invLimitMsg"></span>
+          <span id="invTimeInfo"></span>
         </div>
       </div>
 
@@ -261,6 +262,7 @@
           populateManagerFilter();
           updateDynamicFilters();
           renderInventory();
+          if (time) document.getElementById('invTimeInfo').innerText = '동기화 완료 (' + time + ')';
         } catch(e) {}
       }
     }
@@ -321,6 +323,7 @@
           renderInventory();
 
           const nowStr = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+          document.getElementById('invTimeInfo').innerText = '동기화 완료 (' + nowStr + ')';
 
           try {
             localStorage.setItem('cache_inventory', JSON.stringify(allInventory));
@@ -674,7 +677,7 @@
         return true;
       });
 
-      // --- 정렬 로직 적용 ---
+      // --- 정렬 기능 적용 ---
       if (sortFilter === 'MODEL_ASC') {
         filtered.sort((a, b) => a.modelName.localeCompare(b.modelName, 'ko'));
       } else if (sortFilter === 'MODEL_DESC') {
