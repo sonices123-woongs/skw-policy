@@ -26,7 +26,7 @@
     <header class="bg-blue-600 text-white p-4">
       <div class="max-w-md mx-auto flex justify-between items-center">
         <div class="flex items-center gap-2">
-          <!-- 홈 버튼 (index.html 메인 메뉴로 이동) -->
+          <!-- 메인 홈 메뉴로 이동 -->
           <a href="index.html" class="bg-blue-700 hover:bg-blue-800 text-white px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition">
             <i class="fas fa-home"></i> 홈
           </a>
@@ -287,8 +287,8 @@
       if (!query) return true;
       const cleanQuery = query.toLowerCase().replace(/[\s\-_]/g, '');
       
-      // 검색어가 3자리 이상일 때만 매칭 수행
-      if (cleanQuery.length < 3) return false;
+      // 검색어가 존재할 때 최소 3자리 미만이면 검색 매칭 불가
+      if (cleanQuery.length > 0 && cleanQuery.length < 3) return false;
 
       if (isMatch(item.modelName, cleanQuery) || isMatch(item.location, cleanQuery) || isMatch(item.serialNo, cleanQuery)) {
         return true;
@@ -338,7 +338,8 @@
 
       const availableRegions = new Set();
       allInventory.forEach(item => {
-        if (rawSearch && rawSearch.length >= 3 && !isInventoryMatch(item, rawSearch)) return;
+        if (rawSearch.length > 0 && rawSearch.length < 3) return; // 1~2자리는 처리 제외
+        if (rawSearch.length >= 3 && !isInventoryMatch(item, rawSearch)) return;
         if (managerFilter !== 'ALL' && item.manager !== managerFilter) return;
 
         if (item.region && item.region !== '지역' && item.region !== 'None') {
@@ -434,7 +435,8 @@
 
       const availableCaps = new Set();
       allInventory.forEach(item => {
-        if (rawSearch && rawSearch.length >= 3 && !isInventoryMatch(item, rawSearch)) return;
+        if (rawSearch.length > 0 && rawSearch.length < 3) return;
+        if (rawSearch.length >= 3 && !isInventoryMatch(item, rawSearch)) return;
         if (managerFilter !== 'ALL' && item.manager !== managerFilter) return;
         if (!isRegionMatch(item.region)) return;
 
@@ -478,7 +480,8 @@
 
       const availableColors = new Set();
       allInventory.forEach(item => {
-        if (rawSearch && rawSearch.length >= 3 && !isInventoryMatch(item, rawSearch)) return;
+        if (rawSearch.length > 0 && rawSearch.length < 3) return;
+        if (rawSearch.length >= 3 && !isInventoryMatch(item, rawSearch)) return;
         if (managerFilter !== 'ALL' && item.manager !== managerFilter) return;
         if (!isRegionMatch(item.region)) return;
         if (capFilter !== 'ALL' && item.capacity !== capFilter) return;
@@ -514,7 +517,7 @@
       const list = document.getElementById('inventoryList');
       if (!list) return;
 
-      // 1~2자리 입력시 안내문구 표기 및 과부하 방지
+      // 🔴 핵심 수정: 1글자 또는 2글자 입력 시 즉시 차단하고 경고 문구 표시
       if (rawSearch.length > 0 && rawSearch.length < 3) {
         document.getElementById('invCount').innerText = '0';
         const limitMsg = document.getElementById('invLimitMsg');
