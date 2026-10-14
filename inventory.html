@@ -45,7 +45,7 @@
       <div class="bg-white p-3 rounded-xl shadow-md border border-slate-200 space-y-3">
         <div class="relative">
           <i class="fas fa-search absolute left-3 top-3 text-slate-400"></i>
-          <input type="text" id="invSearchInput" oninput="onInventorySearchChange()" placeholder="기종명/보유처/일련번호 (최소 3자리↑ 검색)" class="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <input type="text" id="invSearchInput" oninput="onInventorySearchChange()" placeholder="보유처(2자↑) / 기종(3자↑) / 일련번호(4자↑)" class="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
         </div>
 
         <div class="grid grid-cols-2 gap-2 text-xs">
@@ -283,14 +283,24 @@
       return cleanText.includes(cleanQuery);
     }
 
+    // 🎯 [핵심] 필드별 입력 길이 규칙 분리 구현
     function isInventoryMatch(item, query) {
       if (!query) return true;
       const cleanQuery = query.toLowerCase().replace(/[\s\-_]/g, '');
-      
-      // 검색어가 존재할 때 최소 3자리 미만이면 검색 매칭 불가
-      if (cleanQuery.length > 0 && cleanQuery.length < 3) return false;
+      const len = cleanQuery.length;
 
-      if (isMatch(item.modelName, cleanQuery) || isMatch(item.location, cleanQuery) || isMatch(item.serialNo, cleanQuery)) {
+      // 1. 거래처/보유처: 2글자 이상이면 검색
+      if (len >= 2 && isMatch(item.location, cleanQuery)) {
+        return true;
+      }
+
+      // 2. 기종명/모델명: 3글자 이상이면 검색
+      if (len >= 3 && isMatch(item.modelName, cleanQuery)) {
+        return true;
+      }
+
+      // 3. 일련번호: 4글자 이상이면 검색
+      if (len >= 4 && isMatch(item.serialNo, cleanQuery)) {
         return true;
       }
 
@@ -338,8 +348,8 @@
 
       const availableRegions = new Set();
       allInventory.forEach(item => {
-        if (rawSearch.length > 0 && rawSearch.length < 3) return; // 1~2자리는 처리 제외
-        if (rawSearch.length >= 3 && !isInventoryMatch(item, rawSearch)) return;
+        if (rawSearch.length === 1) return; // 1글자는 스킵
+        if (rawSearch.length >= 2 && !isInventoryMatch(item, rawSearch)) return;
         if (managerFilter !== 'ALL' && item.manager !== managerFilter) return;
 
         if (item.region && item.region !== '지역' && item.region !== 'None') {
@@ -435,8 +445,8 @@
 
       const availableCaps = new Set();
       allInventory.forEach(item => {
-        if (rawSearch.length > 0 && rawSearch.length < 3) return;
-        if (rawSearch.length >= 3 && !isInventoryMatch(item, rawSearch)) return;
+        if (rawSearch.length === 1) return;
+        if (rawSearch.length >= 2 && !isInventoryMatch(item, rawSearch)) return;
         if (managerFilter !== 'ALL' && item.manager !== managerFilter) return;
         if (!isRegionMatch(item.region)) return;
 
@@ -480,8 +490,8 @@
 
       const availableColors = new Set();
       allInventory.forEach(item => {
-        if (rawSearch.length > 0 && rawSearch.length < 3) return;
-        if (rawSearch.length >= 3 && !isInventoryMatch(item, rawSearch)) return;
+        if (rawSearch.length === 1) return;
+        if (rawSearch.length >= 2 && !isInventoryMatch(item, rawSearch)) return;
         if (managerFilter !== 'ALL' && item.manager !== managerFilter) return;
         if (!isRegionMatch(item.region)) return;
         if (capFilter !== 'ALL' && item.capacity !== capFilter) return;
@@ -517,19 +527,19 @@
       const list = document.getElementById('inventoryList');
       if (!list) return;
 
-      // 🔴 핵심 수정: 1글자 또는 2글자 입력 시 즉시 차단하고 경고 문구 표시
-      if (rawSearch.length > 0 && rawSearch.length < 3) {
+      // 1글자 입력 시 차단 및 안내 문구 표기
+      if (rawSearch.length === 1) {
         document.getElementById('invCount').innerText = '0';
         const limitMsg = document.getElementById('invLimitMsg');
         if (limitMsg) limitMsg.innerText = '';
-        list.innerHTML = `<div class="text-center py-8 text-amber-600 font-semibold text-sm">검색어를 3자리 이상 입력해 주세요.</div>`;
+        list.innerHTML = `<div class="text-center py-8 text-amber-600 font-semibold text-sm">검색어를 2자리 이상 입력해 주세요.</div>`;
         return;
       }
 
-      const isFiltered = (rawSearch.length >= 3) || managerFilter !== 'ALL' || selectedRegions.size > 0 || capFilter !== 'ALL' || colorFilter !== 'ALL';
+      const isFiltered = (rawSearch.length >= 2) || managerFilter !== 'ALL' || selectedRegions.size > 0 || capFilter !== 'ALL' || colorFilter !== 'ALL';
 
       let filtered = allInventory.filter(item => {
-        if (rawSearch.length >= 3 && !isInventoryMatch(item, rawSearch)) return false;
+        if (rawSearch.length >= 2 && !isInventoryMatch(item, rawSearch)) return false;
         if (managerFilter !== 'ALL' && item.manager !== managerFilter) return false;
         if (!isRegionMatch(item.region)) return false;
         if (capFilter !== 'ALL' && item.capacity !== capFilter) return false;
