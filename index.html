@@ -3,53 +3,627 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SKT 더블유대리점 스마트 포털</title>
+  <title>재고 조회 - SKT 더블유대리점</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <style>
     @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
     body { font-family: 'Pretendard', sans-serif; background-color: #f1f5f9; }
+    
+    .stock-card-3m {
+      background-color: #f0fdf4 !important;
+      border-color: #bbf7d0 !important;
+    }
+    .stock-card-6m {
+      background-color: #fff7ed !important;
+      border-color: #fed7aa !important;
+    }
   </style>
 </head>
-<body class="pb-12">
+<body class="pb-12" onclick="closeRegionDropdownOnOutsideClick(event)">
 
-  <div class="min-h-screen">
-    <header class="bg-red-600 text-white p-6 shadow-md rounded-b-2xl">
-      <div class="max-w-md mx-auto text-center">
-        <span class="text-xs bg-red-800 px-2.5 py-1 rounded-full font-bold tracking-wide">SKT 더블유대리점</span>
-        <h1 class="text-2xl font-extrabold mt-2">업무 포털 시스템</h1>
-        <p class="text-xs text-red-100 mt-1">원하시는 메뉴를 선택해 주세요</p>
+  <div class="sticky top-0 z-50 bg-slate-100 shadow-sm">
+    <header class="bg-blue-600 text-white p-4">
+      <div class="max-w-md mx-auto flex justify-between items-center">
+        <div class="flex items-center gap-2">
+          <a href="index.html" class="bg-blue-700 hover:bg-blue-800 text-white px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition">
+            <i class="fas fa-home"></i> 홈
+          </a>
+          <div>
+            <span class="text-[10px] bg-blue-800 px-1.5 py-0.5 rounded font-bold">SKT 더블유대리점</span>
+            <h1 class="text-lg font-bold">재고 조회</h1>
+          </div>
+        </div>
+        <button type="button" onclick="fetchInventoryData(true)" class="bg-blue-700 hover:bg-blue-800 text-white p-2 rounded-full text-xs flex items-center gap-1 transition">
+          <i class="fas fa-sync-alt" id="invSyncIcon"></i> 새로고침
+        </button>
       </div>
     </header>
 
-    <main class="max-w-md mx-auto p-4 mt-4 space-y-4">
-      <div class="grid grid-cols-1 gap-4">
-        <!-- 오늘의 정책 바로가기 -->
-        <a href="policy.html" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-left hover:shadow-md transition flex items-center justify-between group cursor-pointer block">
-          <div class="space-y-1">
-            <span class="text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded">실시간 단가</span>
-            <h2 class="text-xl font-extrabold text-slate-800 group-hover:text-red-600 transition">오늘의 정책</h2>
-            <p class="text-xs text-slate-400">010, MNP, 기변 공시지원금 및 인센티브</p>
-          </div>
-          <div class="w-14 h-14 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center text-2xl font-bold shrink-0">
-            <i class="fas fa-file-invoice-dollar"></i>
-          </div>
-        </a>
+    <div class="max-w-md mx-auto px-4 pt-3 pb-3 space-y-2">
+      <div class="bg-white p-3 rounded-xl shadow-md border border-slate-200 space-y-3">
+        <div class="relative">
+          <i class="fas fa-search absolute left-3 top-3 text-slate-400"></i>
+          <input type="text" id="invSearchInput" oninput="onInventorySearchChange()" placeholder="기종명/보유처/일련번호 (최소 3자리↑ 검색)" class="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
 
-        <!-- 재고 조회 바로가기 -->
-        <a href="inventory.html" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-left hover:shadow-md transition flex items-center justify-between group cursor-pointer block">
-          <div class="space-y-1">
-            <span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">매장 재고</span>
-            <h2 class="text-xl font-extrabold text-slate-800 group-hover:text-blue-600 transition">재고 조회</h2>
-            <p class="text-xs text-slate-400">지점/매장별 단말기 실시간 재고 현황</p>
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <!-- 1. 담당 필터 -->
+          <div>
+            <select id="invManagerFilter" onchange="onInventorySearchChange()" class="w-full p-2 border rounded-lg bg-slate-50 text-slate-700 font-semibold focus:outline-none">
+              <option value="ALL">담당 전체</option>
+            </select>
           </div>
-          <div class="w-14 h-14 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center text-2xl font-bold shrink-0">
-            <i class="fas fa-boxes-stacked"></i>
+
+          <!-- 2. 지역 다중 선택 (체크박스 드롭다운) -->
+          <div class="relative" id="regionDropdownContainer">
+            <button onclick="toggleRegionDropdown(event)" type="button" class="w-full p-2 border rounded-lg bg-slate-50 text-slate-700 font-semibold text-left flex justify-between items-center focus:outline-none">
+              <span id="regionFilterBtnText" class="truncate">지역 전체</span>
+              <i class="fas fa-chevron-down text-slate-400 text-[10px] ml-1"></i>
+            </button>
+
+            <div id="regionMenu" class="hidden absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-56 overflow-y-auto p-2 space-y-1">
+              <div class="flex justify-between items-center pb-1 mb-1 border-b text-[11px] text-slate-500 font-bold px-1">
+                <span>지역 다중 선택</span>
+                <div class="space-x-1">
+                  <button type="button" onclick="selectAllRegions(true)" class="text-blue-600 hover:underline">전체선택</button>
+                  <span>|</span>
+                  <button type="button" onclick="selectAllRegions(false)" class="text-slate-400 hover:underline">해제</button>
+                </div>
+              </div>
+              <div id="regionCheckboxList" class="space-y-1"></div>
+            </div>
           </div>
-        </a>
+
+          <!-- 3. 용량 필터 -->
+          <div>
+            <select id="invCapacityFilter" onchange="onCapacityFilterChange()" class="w-full p-2 border rounded-lg bg-slate-50 text-slate-700 font-semibold focus:outline-none">
+              <option value="ALL">용량 전체</option>
+            </select>
+          </div>
+
+          <!-- 4. 색상 필터 -->
+          <div>
+            <select id="invColorFilter" onchange="renderInventory()" class="w-full p-2 border rounded-lg bg-slate-50 text-slate-700 font-semibold focus:outline-none">
+              <option value="ALL">색상 전체</option>
+            </select>
+          </div>
+
+          <!-- 5. 정렬 기준 드롭다운 -->
+          <div class="col-span-2 pt-2 border-t border-slate-100 flex items-center justify-between">
+            <span class="text-slate-500 font-bold text-[11px]"><i class="fas fa-sort text-blue-500 mr-1"></i>정렬 기준:</span>
+            <select id="invSortFilter" onchange="renderInventory()" class="w-2/3 p-1.5 border rounded-lg bg-blue-50 text-blue-800 font-bold focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs">
+              <option value="DEFAULT">기본 정렬 (담당/지역/매장순)</option>
+              <option value="REGION_ASC">지역별 정렬</option>
+              <option value="COLOR_ASC">색상 정렬</option>
+            </select>
+          </div>
+        </div>
       </div>
-    </main>
+    </div>
   </div>
 
+  <main class="max-w-md mx-auto px-4 pt-1 space-y-3">
+    <div id="invSummary" class="text-xs text-slate-500 font-bold px-1 flex justify-between items-center">
+      <div>
+        <span>조회 결과: <strong id="invCount" class="text-blue-600">0</strong>건</span>
+        <span id="invLimitMsg" class="text-[10px] text-slate-400 font-normal ml-1"></span>
+      </div>
+      <div id="invTimeInfo" class="text-[10px] text-slate-400 font-normal"></div>
+    </div>
+
+    <div id="invLoading" class="text-center py-8 text-slate-500 text-sm hidden">
+      <i class="fas fa-spinner fa-spin text-2xl text-blue-600 mb-2"></i>
+      <p id="invLoadingText">최신 재고 데이터 불러오는 중...</p>
+    </div>
+    <div id="inventoryList" class="space-y-3"></div>
+  </main>
+
+  <script>
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbwdAqEJYYUJnhHtS9AUwUc4N1gOIO39zj1bbDzLfIESukEZsAR6Tb0jS4xYWaiVe_Z3vQ/exec';
+    let allInventory = [];
+    let selectedRegions = new Set();
+
+    function loadInventoryFromCache() {
+      const cached = localStorage.getItem('cache_inventory');
+      const time = localStorage.getItem('cache_inventory_time');
+      if (cached) {
+        try {
+          allInventory = JSON.parse(cached);
+          populateManagerFilter();
+          updateDynamicFilters();
+          renderInventory();
+          if (time) {
+            const timeElem = document.getElementById('invTimeInfo');
+            if (timeElem) timeElem.innerText = '동기화 완료 (' + time + ')';
+          }
+        } catch(e) {}
+      }
+    }
+
+    async function fetchInventoryData(isManualSync = false) {
+      const invSyncIcon = document.getElementById('invSyncIcon');
+      const invLoading = document.getElementById('invLoading');
+      
+      if (invSyncIcon) invSyncIcon.classList.add('fa-spin');
+      if (isManualSync && invLoading && allInventory.length === 0) invLoading.classList.remove('hidden');
+
+      try {
+        const response = await fetch(GAS_URL + '?type=inventory', { redirect: 'follow' });
+        const data = await response.json();
+
+        if (invSyncIcon) invSyncIcon.classList.remove('fa-spin');
+        if (invLoading) invLoading.classList.add('hidden');
+
+        if (data && data.inventory && Array.isArray(data.inventory)) {
+          parseInventoryRows(data.inventory);
+          populateManagerFilter();
+          updateDynamicFilters();
+          renderInventory();
+
+          const nowStr = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+          const timeElem = document.getElementById('invTimeInfo');
+          if (timeElem) timeElem.innerText = '동기화 완료 (' + nowStr + ')';
+
+          try {
+            localStorage.setItem('cache_inventory', JSON.stringify(allInventory));
+            localStorage.setItem('cache_inventory_time', nowStr);
+          } catch(e) {}
+        }
+      } catch (err) {
+        console.error('Inventory error:', err);
+        if (invSyncIcon) invSyncIcon.classList.remove('fa-spin');
+        if (invLoading) invLoading.classList.add('hidden');
+      }
+    }
+
+    function formatDateString(val) {
+      if (!val) return '';
+      let str = String(val).trim();
+      if (!str || str === 'None' || str === 'null' || str === 'undefined' || str === '1899-12-30') return '';
+
+      const reMatch = str.match(/(\d{4})[\.\-\/](\d{1,2})[\.\-\/](\d{1,2})/);
+      if (reMatch) {
+        const y = reMatch[1];
+        const m = String(reMatch[2]).padStart(2, '0');
+        const d = String(reMatch[3]).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      }
+
+      try {
+        const dObj = new Date(str);
+        if (!isNaN(dObj.getTime())) {
+          const y = dObj.getFullYear();
+          if (y < 1970) return '';
+          const m = String(dObj.getMonth() + 1).padStart(2, '0');
+          const d = String(dObj.getDate()).padStart(2, '0');
+          return `${y}-${m}-${d}`;
+        }
+      } catch(e) {}
+
+      return '';
+    }
+
+    function extractCapacity(modelName) {
+      if (!modelName) return '기본용량';
+      const upper = modelName.toUpperCase();
+      const match = upper.match(/(1TB|1T|512G|256G|128G|64G|512GB|256GB|128GB|64GB)/);
+      if (match) {
+        let cap = match[0].replace('GB', 'G');
+        if (cap === '1TB') cap = '1T';
+        return cap;
+      }
+      return '기본용량';
+    }
+
+    function parseInventoryRows(rows) {
+      allInventory = [];
+      if (!rows || rows.length === 0) return;
+
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
+        if (!r || !Array.isArray(r)) continue;
+
+        let manager = r[0] ? String(r[0]).trim() : '';
+        let region = r[1] ? String(r[1]).trim() : '';
+        let location = r[2] ? String(r[2]).trim() : '';
+        let rawMoveDate = r[3] ? String(r[3]).trim() : '';
+        let cleanMoveDate = formatDateString(rawMoveDate);
+
+        let modelName = r[4] ? String(r[4]).trim() : '';
+        let color = r[5] ? String(r[5]).trim() : '';
+        let serialNo = r[6] ? String(r[6]).trim() : '';
+        let note = r[7] ? String(r[7]).trim() : '';
+
+        if (!modelName || modelName === '대표모델명' || modelName === 'None') continue;
+
+        let detectedCap = extractCapacity(modelName);
+
+        if (note === '0' || note === 'None' || note === 'null' || note === 'undefined') {
+          note = '';
+        }
+
+        allInventory.push({
+          manager: manager,
+          region: region,
+          location: location,
+          moveDate: cleanMoveDate,
+          modelName: modelName,
+          capacity: detectedCap,
+          color: color,
+          serialNo: serialNo,
+          note: note
+        });
+      }
+    }
+
+    function populateManagerFilter() {
+      const managerSelect = document.getElementById('invManagerFilter');
+      if (!managerSelect) return;
+
+      const managers = new Set();
+      allInventory.forEach(item => {
+        if (item.manager && item.manager !== '레벨2조직명' && item.manager !== '영업담당' && item.manager !== 'None') {
+          managers.add(item.manager);
+        }
+      });
+
+      managerSelect.innerHTML = '<option value="ALL">담당 전체</option>';
+      Array.from(managers).sort().forEach(m => {
+        managerSelect.innerHTML += `<option value="${m}">${m}</option>`;
+      });
+    }
+
+    function isMatch(text, query) {
+      if (!query) return true;
+      if (!text) return false;
+      const cleanText = String(text).toLowerCase().replace(/[\s\-_]/g, '');
+      const cleanQuery = String(query).toLowerCase().replace(/[\s\-_]/g, '');
+      return cleanText.includes(cleanQuery);
+    }
+
+    function isInventoryMatch(item, query) {
+      if (!query) return true;
+      const cleanQuery = query.toLowerCase().replace(/[\s\-_]/g, '');
+      
+      // 검색어가 3자리 이상일 때만 매칭 수행
+      if (cleanQuery.length < 3) return false;
+
+      if (isMatch(item.modelName, cleanQuery) || isMatch(item.location, cleanQuery) || isMatch(item.serialNo, cleanQuery)) {
+        return true;
+      }
+
+      return false;
+    }
+
+    function onInventorySearchChange() {
+      updateDynamicFilters();
+      renderInventory();
+    }
+
+    function onCapacityFilterChange() {
+      updateDynamicColorFilter();
+      renderInventory();
+    }
+
+    function updateDynamicFilters() {
+      updateDynamicRegionFilter();
+      updateDynamicCapacityFilter();
+      updateDynamicColorFilter();
+    }
+
+    function toggleRegionDropdown(e) {
+      if (e) e.stopPropagation();
+      const menu = document.getElementById('regionMenu');
+      if (menu) menu.classList.toggle('hidden');
+    }
+
+    function closeRegionDropdownOnOutsideClick(e) {
+      const container = document.getElementById('regionDropdownContainer');
+      const menu = document.getElementById('regionMenu');
+      if (container && menu && !container.contains(e.target)) {
+        menu.classList.add('hidden');
+      }
+    }
+
+    function updateDynamicRegionFilter() {
+      const listContainer = document.getElementById('regionCheckboxList');
+      if (!listContainer) return;
+
+      const searchElem = document.getElementById('invSearchInput');
+      const rawSearch = searchElem ? searchElem.value.trim() : '';
+      const managerElem = document.getElementById('invManagerFilter');
+      const managerFilter = managerElem ? managerElem.value : 'ALL';
+
+      const availableRegions = new Set();
+      allInventory.forEach(item => {
+        // 검색어가 1~2자리일 때는 검색 매칭 적용X
+        if (rawSearch && rawSearch.length >= 3 && !isInventoryMatch(item, rawSearch)) return;
+        if (managerFilter !== 'ALL' && item.manager !== managerFilter) return;
+
+        if (item.region && item.region !== '지역' && item.region !== 'None') {
+          availableRegions.add(item.region);
+        }
+      });
+
+      selectedRegions.forEach(r => {
+        if (!availableRegions.has(r)) selectedRegions.delete(r);
+      });
+
+      listContainer.innerHTML = '';
+      const sortedRegions = Array.from(availableRegions).sort();
+
+      if (sortedRegions.length === 0) {
+        listContainer.innerHTML = `<div class="text-xs text-slate-400 p-2 text-center">선택 가능한 지역 없음</div>`;
+      } else {
+        sortedRegions.forEach(r => {
+          const isChecked = selectedRegions.has(r) ? 'checked' : '';
+          listContainer.innerHTML += `
+            <label class="flex items-center gap-2 p-1 hover:bg-slate-50 rounded cursor-pointer text-xs text-slate-700">
+              <input type="checkbox" value="${r}" ${isChecked} onchange="onRegionCheckboxChange('${r}', this.checked)" class="rounded text-blue-600 focus:ring-blue-500">
+              <span>${r}</span>
+            </label>
+          `;
+        });
+      }
+
+      updateRegionButtonText();
+    }
+
+    function onRegionCheckboxChange(regionName, isChecked) {
+      if (isChecked) {
+        selectedRegions.add(regionName);
+      } else {
+        selectedRegions.delete(regionName);
+      }
+
+      updateRegionButtonText();
+      updateDynamicCapacityFilter();
+      updateDynamicColorFilter();
+      renderInventory();
+    }
+
+    function selectAllRegions(doSelectAll) {
+      const checkboxes = document.querySelectorAll('#regionCheckboxList input[type="checkbox"]');
+      selectedRegions.clear();
+
+      checkboxes.forEach(cb => {
+        cb.checked = doSelectAll;
+        if (doSelectAll) {
+          selectedRegions.add(cb.value);
+        }
+      });
+
+      updateRegionButtonText();
+      updateDynamicCapacityFilter();
+      updateDynamicColorFilter();
+      renderInventory();
+    }
+
+    function updateRegionButtonText() {
+      const btnText = document.getElementById('regionFilterBtnText');
+      if (!btnText) return;
+
+      if (selectedRegions.size === 0) {
+        btnText.innerText = '지역 전체';
+        btnText.className = 'truncate text-slate-700 font-semibold';
+      } else if (selectedRegions.size === 1) {
+        btnText.innerText = Array.from(selectedRegions)[0];
+        btnText.className = 'truncate text-blue-600 font-bold';
+      } else {
+        const first = Array.from(selectedRegions)[0];
+        btnText.innerText = `${first} 외 ${selectedRegions.size - 1}개`;
+        btnText.className = 'truncate text-blue-600 font-bold';
+      }
+    }
+
+    function isRegionMatch(itemRegion) {
+      if (selectedRegions.size === 0) return true;
+      return selectedRegions.has(itemRegion);
+    }
+
+    function updateDynamicCapacityFilter() {
+      const capSelect = document.getElementById('invCapacityFilter');
+      if (!capSelect) return;
+
+      const searchElem = document.getElementById('invSearchInput');
+      const rawSearch = searchElem ? searchElem.value.trim() : '';
+      const managerElem = document.getElementById('invManagerFilter');
+      const managerFilter = managerElem ? managerElem.value : 'ALL';
+      const prevSelectedCap = capSelect.value;
+
+      const availableCaps = new Set();
+      allInventory.forEach(item => {
+        if (rawSearch && rawSearch.length >= 3 && !isInventoryMatch(item, rawSearch)) return;
+        if (managerFilter !== 'ALL' && item.manager !== managerFilter) return;
+        if (!isRegionMatch(item.region)) return;
+
+        if (item.capacity) {
+          availableCaps.add(item.capacity);
+        }
+      });
+
+      capSelect.innerHTML = '<option value="ALL">용량 전체</option>';
+      
+      const sortOrder = ['기본용량', '64G', '128G', '256G', '512G', '1T'];
+      const sortedCaps = Array.from(availableCaps).sort((a, b) => {
+        let ia = sortOrder.indexOf(a);
+        let ib = sortOrder.indexOf(b);
+        if (ia === -1) ia = 99;
+        if (ib === -1) ib = 99;
+        return ia - ib;
+      });
+
+      sortedCaps.forEach(c => {
+        const isSelected = (c === prevSelectedCap) ? 'selected' : '';
+        capSelect.innerHTML += `<option value="${c}" ${isSelected}>${c}</option>`;
+      });
+
+      if (prevSelectedCap !== 'ALL' && !availableCaps.has(prevSelectedCap)) {
+        capSelect.value = 'ALL';
+      }
+    }
+
+    function updateDynamicColorFilter() {
+      const colorSelect = document.getElementById('invColorFilter');
+      if (!colorSelect) return;
+
+      const searchElem = document.getElementById('invSearchInput');
+      const rawSearch = searchElem ? searchElem.value.trim() : '';
+      const managerElem = document.getElementById('invManagerFilter');
+      const managerFilter = managerElem ? managerElem.value : 'ALL';
+      const capElem = document.getElementById('invCapacityFilter');
+      const capFilter = capElem ? capElem.value : 'ALL';
+      const prevSelectedColor = colorSelect.value;
+
+      const availableColors = new Set();
+      allInventory.forEach(item => {
+        if (rawSearch && rawSearch.length >= 3 && !isInventoryMatch(item, rawSearch)) return;
+        if (managerFilter !== 'ALL' && item.manager !== managerFilter) return;
+        if (!isRegionMatch(item.region)) return;
+        if (capFilter !== 'ALL' && item.capacity !== capFilter) return;
+
+        if (item.color && item.color !== '색상' && item.color !== 'None') {
+          availableColors.add(item.color);
+        }
+      });
+
+      colorSelect.innerHTML = '<option value="ALL">색상 전체</option>';
+      Array.from(availableColors).sort().forEach(c => {
+        const isSelected = (c === prevSelectedColor) ? 'selected' : '';
+        colorSelect.innerHTML += `<option value="${c}" ${isSelected}>${c}</option>`;
+      });
+
+      if (prevSelectedColor !== 'ALL' && !availableColors.has(prevSelectedColor)) {
+        colorSelect.value = 'ALL';
+      }
+    }
+
+    function renderInventory() {
+      const searchElem = document.getElementById('invSearchInput');
+      const rawSearch = searchElem ? searchElem.value.trim() : '';
+      const managerElem = document.getElementById('invManagerFilter');
+      const managerFilter = managerElem ? managerElem.value : 'ALL';
+      const capElem = document.getElementById('invCapacityFilter');
+      const capFilter = capElem ? capElem.value : 'ALL';
+      const colorElem = document.getElementById('invColorFilter');
+      const colorFilter = colorElem ? colorElem.value : 'ALL';
+      const sortElem = document.getElementById('invSortFilter');
+      const sortFilter = sortElem ? sortElem.value : 'DEFAULT';
+      
+      const list = document.getElementById('inventoryList');
+      if (!list) return;
+
+      // 1~2자리 검색어만 입력된 경우 안내문구 출력 후 리턴 (데이터 과부하 방지)
+      if (rawSearch.length > 0 && rawSearch.length < 3) {
+        document.getElementById('invCount').innerText = '0';
+        const limitMsg = document.getElementById('invLimitMsg');
+        if (limitMsg) limitMsg.innerText = '';
+        list.innerHTML = `<div class="text-center py-8 text-amber-600 font-semibold text-sm">검색어를 3자리 이상 입력해 주세요.</div>`;
+        return;
+      }
+
+      const isFiltered = (rawSearch.length >= 3) || managerFilter !== 'ALL' || selectedRegions.size > 0 || capFilter !== 'ALL' || colorFilter !== 'ALL';
+
+      let filtered = allInventory.filter(item => {
+        if (rawSearch.length >= 3 && !isInventoryMatch(item, rawSearch)) return false;
+        if (managerFilter !== 'ALL' && item.manager !== managerFilter) return false;
+        if (!isRegionMatch(item.region)) return false;
+        if (capFilter !== 'ALL' && item.capacity !== capFilter) return false;
+        if (colorFilter !== 'ALL' && item.color !== colorFilter) return false;
+
+        return true;
+      });
+
+      if (sortFilter === 'REGION_ASC') {
+        filtered.sort((a, b) => {
+          let regCompare = (a.region || "").localeCompare(b.region || "", 'ko');
+          if (regCompare !== 0) return regCompare;
+          return (a.color || "").localeCompare(b.color || "", 'ko');
+        });
+      } else if (sortFilter === 'COLOR_ASC') {
+        filtered.sort((a, b) => (a.color || "").localeCompare(b.color || "", 'ko'));
+      } else { // DEFAULT
+        filtered.sort((a, b) => {
+          if (a.manager !== b.manager) return (a.manager || "").localeCompare(b.manager || "", 'ko');
+          if (a.region !== b.region) return (a.region || "").localeCompare(b.region || "", 'ko');
+          return (a.location || "").localeCompare(b.location || "", 'ko');
+        });
+      }
+
+      const countElem = document.getElementById('invCount');
+      if (countElem) countElem.innerText = filtered.length;
+      
+      const displayItems = isFiltered ? filtered : filtered.slice(0, 30);
+
+      const limitMsg = document.getElementById('invLimitMsg');
+      if (limitMsg) {
+        limitMsg.innerText = (!isFiltered && filtered.length > 30) ? '(상위 30개 표시 중 - 검색 시 전체 조회)' : '';
+      }
+
+      list.innerHTML = '';
+
+      if (filtered.length === 0) {
+        list.innerHTML = `<div class="text-center py-8 text-slate-400 text-sm">조회된 재고가 없습니다.</div>`;
+        return;
+      }
+
+      const today = new Date();
+      let htmlBuffer = '';
+
+      displayItems.forEach(item => {
+        let cardStyleClass = "bg-white border-slate-200";
+        let dateBadgeHtml = "";
+
+        if (item.moveDate) {
+          let moveDateObj = new Date(item.moveDate);
+          let diffDays = Math.floor((today - moveDateObj) / (1000 * 60 * 60 * 24));
+
+          if (diffDays >= 180) {
+            cardStyleClass = "stock-card-6m";
+            dateBadgeHtml = `<span class="ml-1.5 text-[10px] font-bold bg-orange-600 text-white px-1.5 py-0.5 rounded">6개월+</span>`;
+          } else if (diffDays >= 90) {
+            cardStyleClass = "stock-card-3m";
+            dateBadgeHtml = `<span class="ml-1.5 text-[10px] font-bold bg-emerald-600 text-white px-1.5 py-0.5 rounded">3개월+</span>`;
+          }
+        }
+
+        const moveDateText = item.moveDate ? `입고일: ${item.moveDate}` : '';
+        const noteBadge = item.note ? `<span class="text-[10px] font-bold bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded border border-amber-200">비고: ${item.note}</span>` : '';
+
+        htmlBuffer += `
+          <div class="${cardStyleClass} p-3.5 rounded-xl shadow-sm border space-y-2">
+            <div class="flex justify-between items-start">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="text-xs font-bold bg-blue-50 text-blue-700 px-2 py-0.5 rounded">${item.modelName}</span>
+                <span class="text-xs font-semibold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">${item.color || '기본색상'}</span>
+                ${noteBadge}
+              </div>
+              <div class="text-[11px] text-slate-400 font-mono">
+                S/N: <strong class="text-slate-600">${item.serialNo || '-'}</strong>
+              </div>
+            </div>
+
+            <div class="flex justify-between items-end pt-1 border-t border-slate-100/60 text-xs text-slate-500">
+              <div>
+                <div>보유처: <strong class="text-slate-800 font-semibold">${item.location}</strong></div>
+                ${moveDateText ? `<div class="text-[10px] text-slate-500 font-medium">${moveDateText}${dateBadgeHtml}</div>` : ''}
+              </div>
+              <div class="text-right text-[11px] text-slate-400">
+                <span>담당: <strong class="text-slate-600 font-medium">${item.manager}</strong></span>
+                ${item.region ? `<span class="ml-1 text-blue-700 font-bold">(${item.region})</span>` : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      list.innerHTML = htmlBuffer;
+    }
+
+    window.onload = function() {
+      loadInventoryFromCache();
+      fetchInventoryData(false);
+    };
+  </script>
 </body>
 </html>
