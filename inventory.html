@@ -26,9 +26,10 @@
     <header class="bg-blue-600 text-white p-4">
       <div class="max-w-md mx-auto flex justify-between items-center">
         <div class="flex items-center gap-2">
-         <a href="index.html" class="bg-blue-700 hover:bg-blue-800 text-white px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition">
-  <i class="fas fa-home"></i> 홈
-</a>
+          <!-- 홈 버튼 (index.html 메인 메뉴로 이동) -->
+          <a href="index.html" class="bg-blue-700 hover:bg-blue-800 text-white px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition">
+            <i class="fas fa-home"></i> 홈
+          </a>
           <div>
             <span class="text-[10px] bg-blue-800 px-1.5 py-0.5 rounded font-bold">SKT 더블유대리점</span>
             <h1 class="text-lg font-bold">재고 조회</h1>
@@ -44,7 +45,7 @@
       <div class="bg-white p-3 rounded-xl shadow-md border border-slate-200 space-y-3">
         <div class="relative">
           <i class="fas fa-search absolute left-3 top-3 text-slate-400"></i>
-          <input type="text" id="invSearchInput" oninput="onInventorySearchChange()" placeholder="기종명/보유처/일련번호(4자리↑) 검색" class="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <input type="text" id="invSearchInput" oninput="onInventorySearchChange()" placeholder="기종명/보유처/일련번호 (최소 3자리↑ 검색)" class="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
         </div>
 
         <div class="grid grid-cols-2 gap-2 text-xs">
@@ -89,7 +90,7 @@
             </select>
           </div>
 
-          <!-- 5. 정렬 기준 드롭다운 (3가지 정렬 옵션) -->
+          <!-- 5. 정렬 기준 드롭다운 -->
           <div class="col-span-2 pt-2 border-t border-slate-100 flex items-center justify-between">
             <span class="text-slate-500 font-bold text-[11px]"><i class="fas fa-sort text-blue-500 mr-1"></i>정렬 기준:</span>
             <select id="invSortFilter" onchange="renderInventory()" class="w-2/3 p-1.5 border rounded-lg bg-blue-50 text-blue-800 font-bold focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs">
@@ -120,7 +121,6 @@
   </main>
 
   <script>
-    // 최신 배포 주소 연동
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbwdAqEJYYUJnhHtS9AUwUc4N1gOIO39zj1bbDzLfIESukEZsAR6Tb0jS4xYWaiVe_Z3vQ/exec';
     let allInventory = [];
     let selectedRegions = new Set();
@@ -287,11 +287,10 @@
       if (!query) return true;
       const cleanQuery = query.toLowerCase().replace(/[\s\-_]/g, '');
       
-      if (isMatch(item.modelName, cleanQuery) || isMatch(item.location, cleanQuery)) {
-        return true;
-      }
+      // 검색어가 3자리 이상일 때만 매칭 수행
+      if (cleanQuery.length < 3) return false;
 
-      if (cleanQuery.length >= 4 && isMatch(item.serialNo, cleanQuery)) {
+      if (isMatch(item.modelName, cleanQuery) || isMatch(item.location, cleanQuery) || isMatch(item.serialNo, cleanQuery)) {
         return true;
       }
 
@@ -339,7 +338,7 @@
 
       const availableRegions = new Set();
       allInventory.forEach(item => {
-        if (rawSearch && !isInventoryMatch(item, rawSearch)) return;
+        if (rawSearch && rawSearch.length >= 3 && !isInventoryMatch(item, rawSearch)) return;
         if (managerFilter !== 'ALL' && item.manager !== managerFilter) return;
 
         if (item.region && item.region !== '지역' && item.region !== 'None') {
@@ -435,7 +434,7 @@
 
       const availableCaps = new Set();
       allInventory.forEach(item => {
-        if (rawSearch && !isInventoryMatch(item, rawSearch)) return;
+        if (rawSearch && rawSearch.length >= 3 && !isInventoryMatch(item, rawSearch)) return;
         if (managerFilter !== 'ALL' && item.manager !== managerFilter) return;
         if (!isRegionMatch(item.region)) return;
 
@@ -479,7 +478,7 @@
 
       const availableColors = new Set();
       allInventory.forEach(item => {
-        if (rawSearch && !isInventoryMatch(item, rawSearch)) return;
+        if (rawSearch && rawSearch.length >= 3 && !isInventoryMatch(item, rawSearch)) return;
         if (managerFilter !== 'ALL' && item.manager !== managerFilter) return;
         if (!isRegionMatch(item.region)) return;
         if (capFilter !== 'ALL' && item.capacity !== capFilter) return;
@@ -515,10 +514,19 @@
       const list = document.getElementById('inventoryList');
       if (!list) return;
 
-      const isFiltered = rawSearch || managerFilter !== 'ALL' || selectedRegions.size > 0 || capFilter !== 'ALL' || colorFilter !== 'ALL';
+      // 1~2자리 입력시 안내문구 표기 및 과부하 방지
+      if (rawSearch.length > 0 && rawSearch.length < 3) {
+        document.getElementById('invCount').innerText = '0';
+        const limitMsg = document.getElementById('invLimitMsg');
+        if (limitMsg) limitMsg.innerText = '';
+        list.innerHTML = `<div class="text-center py-8 text-amber-600 font-semibold text-sm">검색어를 3자리 이상 입력해 주세요.</div>`;
+        return;
+      }
+
+      const isFiltered = (rawSearch.length >= 3) || managerFilter !== 'ALL' || selectedRegions.size > 0 || capFilter !== 'ALL' || colorFilter !== 'ALL';
 
       let filtered = allInventory.filter(item => {
-        if (rawSearch && !isInventoryMatch(item, rawSearch)) return false;
+        if (rawSearch.length >= 3 && !isInventoryMatch(item, rawSearch)) return false;
         if (managerFilter !== 'ALL' && item.manager !== managerFilter) return false;
         if (!isRegionMatch(item.region)) return false;
         if (capFilter !== 'ALL' && item.capacity !== capFilter) return false;
