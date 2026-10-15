@@ -51,7 +51,7 @@
       <div class="bg-white p-3.5 rounded-xl shadow-md border border-slate-200 space-y-3">
         <div class="relative">
           <i class="fas fa-search absolute left-3.5 top-3.5 text-slate-400 text-base"></i>
-          <input type="text" id="invSearchInput" oninput="onInventorySearchChange()" placeholder="기종명 / 보유처 / 일련번호 검색" class="w-full pl-10 pr-4 py-2.5 border rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <input type="text" id="invSearchInput" oninput="onInventorySearchChange()" placeholder="보유처(2자↑) / 기종(3자↑) / 일련번호(4자↑)" class="w-full pl-10 pr-4 py-2.5 border rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500">
         </div>
 
         <div class="grid grid-cols-2 gap-2 text-sm">
@@ -223,7 +223,6 @@
       return '기본용량';
     }
 
-    // 🎯 파싱 안정화: 데이터 유무에 상관없이 예외 없이 파싱되도록 강화
     function parseInventoryRows(rows) {
       allInventory = [];
       if (!rows || rows.length === 0) return;
@@ -243,7 +242,6 @@
         let serialNo = r[6] ? String(r[6]).trim() : '';
         let note = r[7] ? String(r[7]).trim() : '';
 
-        // 헤더 행이거나 모델명이 비어 있는 경우 제외
         if (!modelName || modelName === '대표모델명' || modelName === 'None' || modelName === 'null') continue;
 
         let detectedCap = extractCapacity(modelName);
@@ -291,19 +289,29 @@
       return cleanText.includes(cleanQuery);
     }
 
+    // 🎯 [검색 규칙] 보유처 2자↑ / 기종 3자↑ (숫자입력 포함) / 일련번호 4자↑
     function isInventoryMatch(item, query) {
       if (!query) return true;
       const cleanQuery = query.toLowerCase().replace(/[\s\-_]/g, '');
+      const len = cleanQuery.length;
 
-      // 1. 일반 텍스트 매칭
-      if (isMatch(item.modelName, cleanQuery) || isMatch(item.location, cleanQuery) || isMatch(item.serialNo, cleanQuery)) {
+      // 1. 보유처(거래처명): 2글자 이상 입력 시 검색
+      if (len >= 2 && isMatch(item.location, cleanQuery)) {
         return true;
       }
 
-      // 2. 숫자로만 검색 시 기종명 내 숫자 포함 여부 비교 (예: 175 입력 시 A175, SM-A175N 매칭)
-      if (/^\d+$/.test(cleanQuery)) {
-        const modelDigits = String(item.modelName).replace(/[^0-9]/g, '');
-        if (modelDigits.includes(cleanQuery)) return true;
+      // 2. 기종명/모델명: 3글자 이상 입력 시 검색 (175 입력 시 A175 등 매칭 포함)
+      if (len >= 3) {
+        if (isMatch(item.modelName, cleanQuery)) return true;
+        if (/^\d+$/.test(cleanQuery)) {
+          const modelDigits = String(item.modelName).replace(/[^0-9]/g, '');
+          if (modelDigits.includes(cleanQuery)) return true;
+        }
+      }
+
+      // 3. 일련번호: 4글자 이상 입력 시 검색
+      if (len >= 4 && isMatch(item.serialNo, cleanQuery)) {
+        return true;
       }
 
       return false;
@@ -350,7 +358,8 @@
 
       const availableRegions = new Set();
       allInventory.forEach(item => {
-        if (rawSearch.length > 0 && !isInventoryMatch(item, rawSearch)) return;
+        if (rawSearch.length === 1) return; // 1글자 입력 시 스킵
+        if (rawSearch.length >= 2 && !isInventoryMatch(item, rawSearch)) return;
         if (managerFilter !== 'ALL' && item.manager !== managerFilter) return;
 
         if (item.region && item.region !== '지역' && item.region !== 'None') {
@@ -446,7 +455,8 @@
 
       const availableCaps = new Set();
       allInventory.forEach(item => {
-        if (rawSearch.length > 0 && !isInventoryMatch(item, rawSearch)) return;
+        if (rawSearch.length === 1) return;
+        if (rawSearch.length >= 2 && !isInventoryMatch(item, rawSearch)) return;
         if (managerFilter !== 'ALL' && item.manager !== managerFilter) return;
         if (!isRegionMatch(item.region)) return;
 
@@ -490,7 +500,8 @@
 
       const availableColors = new Set();
       allInventory.forEach(item => {
-        if (rawSearch.length > 0 && !isInventoryMatch(item, rawSearch)) return;
+        if (rawSearch.length === 1) return;
+        if (rawSearch.length >= 2 && !isInventoryMatch(item, rawSearch)) return;
         if (managerFilter !== 'ALL' && item.manager !== managerFilter) return;
         if (!isRegionMatch(item.region)) return;
         if (capFilter !== 'ALL' && item.capacity !== capFilter) return;
@@ -526,10 +537,17 @@
       const list = document.getElementById('inventoryList');
       if (!list) return;
 
-      const isFiltered = rawSearch.length > 0 || managerFilter !== 'ALL' || selectedRegions.size > 0 || capFilter !== 'ALL' || colorFilter !== 'ALL';
+      // 1글자만 입력 시 안내 메시지
+      if (rawSearch.length === 1) {
+        document.getElementById('invCount').innerText = '0';
+        list.innerHTML = `<div class="text-center py-8 text-amber-600 font-semibold text-base">검색어를 2자리 이상 입력해 주세요.</div>`;
+        return;
+      }
+
+      const isFiltered = (rawSearch.length >= 2) || managerFilter !== 'ALL' || selectedRegions.size > 0 || capFilter !== 'ALL' || colorFilter !== 'ALL';
 
       let filtered = allInventory.filter(item => {
-        if (rawSearch.length > 0 && !isInventoryMatch(item, rawSearch)) return false;
+        if (rawSearch.length >= 2 && !isInventoryMatch(item, rawSearch)) return false;
         if (managerFilter !== 'ALL' && item.manager !== managerFilter) return false;
         if (!isRegionMatch(item.region)) return false;
         if (capFilter !== 'ALL' && item.capacity !== capFilter) return false;
@@ -539,7 +557,7 @@
       });
 
       // 보유처 검색 여부 판단
-      const isSearchingLocation = rawSearch.length > 0 && filtered.some(item => isMatch(item.location, rawSearch));
+      const isSearchingLocation = rawSearch.length >= 2 && filtered.some(item => isMatch(item.location, rawSearch));
 
       if (isSearchingLocation) {
         filtered.sort((a, b) => {
@@ -566,7 +584,7 @@
       const countElem = document.getElementById('invCount');
       if (countElem) countElem.innerText = filtered.length;
       
-      // 검색이 안 걸려있는 기본 상태에서는 상위 30개 표시
+      // 검색이 안 걸린 초기 상태에는 30개 표시
       const displayItems = isFiltered ? filtered : filtered.slice(0, 30);
 
       list.innerHTML = '';
