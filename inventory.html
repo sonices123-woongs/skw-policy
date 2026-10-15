@@ -131,6 +131,13 @@
     let allInventory = [];
     let selectedRegions = new Set();
 
+    // 📱 앱 종료 시 한글 안내 문구 설정
+    window.addEventListener('beforeunload', function (e) {
+      const confirmationMessage = '종료하시겠습니까?';
+      (e || window.event).returnValue = confirmationMessage;
+      return confirmationMessage;
+    });
+
     function loadInventoryFromCache() {
       const cached = localStorage.getItem('cache_inventory');
       const time = localStorage.getItem('cache_inventory_time');
@@ -485,7 +492,7 @@
       const searchElem = document.getElementById('invSearchInput');
       const rawSearch = searchElem ? searchElem.value.trim() : '';
       const managerElem = document.getElementById('invManagerFilter');
-      const managerFilter = managerElem ? managerElem.value : 'ALL';
+      const managerFilter = managerElem ? managerFilter.value : 'ALL';
       const capElem = document.getElementById('invCapacityFilter');
       const capFilter = capElem ? capElem.value : 'ALL';
       const prevSelectedColor = colorSelect.value;
@@ -518,7 +525,7 @@
       const searchElem = document.getElementById('invSearchInput');
       const rawSearch = searchElem ? searchElem.value.trim() : '';
       const managerElem = document.getElementById('invManagerFilter');
-      const managerFilter = managerElem ? managerFilter.value : 'ALL';
+      const managerFilter = managerElem ? managerElem.value : 'ALL';
       const capElem = document.getElementById('invCapacityFilter');
       const capFilter = capElem ? capElem.value : 'ALL';
       const colorElem = document.getElementById('invColorFilter');
@@ -547,7 +554,17 @@
         return true;
       });
 
-      if (sortFilter === 'REGION_ASC') {
+      // 🎯 보유처 검색 판단 (검색어가 존재하고 보유처에 매칭될 때)
+      const isSearchingLocation = rawSearch.length >= 2 && filtered.some(item => isMatch(item.location, rawSearch));
+
+      if (isSearchingLocation) {
+        // 🌟 보유처로 검색된 경우: 기종명(모델명) 순으로 우선 정렬
+        filtered.sort((a, b) => {
+          let modelCompare = (a.modelName || "").localeCompare(b.modelName || "", 'ko');
+          if (modelCompare !== 0) return modelCompare;
+          return (a.color || "").localeCompare(b.color || "", 'ko');
+        });
+      } else if (sortFilter === 'REGION_ASC') {
         filtered.sort((a, b) => {
           let regCompare = (a.region || "").localeCompare(b.region || "", 'ko');
           if (regCompare !== 0) return regCompare;
@@ -602,7 +619,6 @@
           <div class="${cardStyleClass} p-3.5 rounded-xl shadow-sm border space-y-2">
             <div class="flex justify-between items-start gap-2">
               <div class="flex items-center gap-1.5 flex-wrap">
-                <!-- 모델명 1단계 축소 (text-sm font-bold) -->
                 <span class="text-sm font-bold bg-blue-50 text-blue-700 px-2 py-0.5 rounded">${item.modelName}</span>
                 <span class="text-xs font-semibold bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded">${item.color || '기본색상'}</span>
                 ${noteBadge}
@@ -612,15 +628,12 @@
               </div>
             </div>
 
-            <!-- 하단 레이아웃: 담당 및 지역 우측 정렬 밀착 구조 -->
             <div class="flex justify-between items-end pt-2 border-t border-slate-100 text-xs text-slate-600 gap-2">
               <div class="min-w-0 flex-1">
-                <!-- 보유처 1단계 축소 (text-sm font-bold) -->
                 <div class="truncate">보유처: <strong class="text-slate-900 font-bold text-sm">${item.location}</strong></div>
                 ${moveDateText ? `<div class="text-[11px] text-slate-500 font-medium mt-0.5">${moveDateText}${dateBadgeHtml}</div>` : ''}
               </div>
               
-              <!-- 🎯 담당 & 지역 우측 정렬 밀착 (절대 안 잘림) -->
               <div class="shrink-0 text-right whitespace-nowrap">
                 <span>담당: <strong class="text-slate-800 font-semibold">${item.manager || '-'}</strong></span>
                 ${item.region ? `<span class="ml-1 text-blue-700 font-bold">(${item.region})</span>` : ''}
