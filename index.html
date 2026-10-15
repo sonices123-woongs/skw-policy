@@ -57,15 +57,5 @@
       </div>
     </main>
   </div>
-
-  <script>
-    // 📱 앱 종료/이탈 시 한글 안내 문구 설정
-    window.addEventListener('beforeunload', function (e) {
-      const confirmationMessage = '종료하시겠습니까?';
-      (e || window.event).returnValue = confirmationMessage;
-      return confirmationMessage;
-    });
-  </script>
-
 </body>
 </html>
