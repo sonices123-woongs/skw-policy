@@ -131,13 +131,6 @@
     let allInventory = [];
     let selectedRegions = new Set();
 
-    // 📱 앱 종료 시 한글 안내 문구 설정
-    window.addEventListener('beforeunload', function (e) {
-      const confirmationMessage = '종료하시겠습니까?';
-      (e || window.event).returnValue = confirmationMessage;
-      return confirmationMessage;
-    });
-
     function loadInventoryFromCache() {
       const cached = localStorage.getItem('cache_inventory');
       const time = localStorage.getItem('cache_inventory_time');
@@ -230,6 +223,7 @@
       return '기본용량';
     }
 
+    // 🎯 파싱 안정화: 데이터 유무에 상관없이 예외 없이 파싱되도록 강화
     function parseInventoryRows(rows) {
       allInventory = [];
       if (!rows || rows.length === 0) return;
@@ -249,7 +243,8 @@
         let serialNo = r[6] ? String(r[6]).trim() : '';
         let note = r[7] ? String(r[7]).trim() : '';
 
-        if (!modelName || modelName === '대표모델명' || modelName === 'None') continue;
+        // 헤더 행이거나 모델명이 비어 있는 경우 제외
+        if (!modelName || modelName === '대표모델명' || modelName === 'None' || modelName === 'null') continue;
 
         let detectedCap = extractCapacity(modelName);
 
@@ -296,17 +291,16 @@
       return cleanText.includes(cleanQuery);
     }
 
-    // 🎯 원래대로 직관적이고 유연하게 검색되는 검색 매칭 함수
     function isInventoryMatch(item, query) {
       if (!query) return true;
       const cleanQuery = query.toLowerCase().replace(/[\s\-_]/g, '');
 
-      // 1. 일반 텍스트 매칭 (기종명, 보유처, 일련번호)
+      // 1. 일반 텍스트 매칭
       if (isMatch(item.modelName, cleanQuery) || isMatch(item.location, cleanQuery) || isMatch(item.serialNo, cleanQuery)) {
         return true;
       }
 
-      // 2. 숫자로만 검색 시 기종명 내 숫자 포함 여부 비교 (예: 175 입력 시 A175 매칭)
+      // 2. 숫자로만 검색 시 기종명 내 숫자 포함 여부 비교 (예: 175 입력 시 A175, SM-A175N 매칭)
       if (/^\d+$/.test(cleanQuery)) {
         const modelDigits = String(item.modelName).replace(/[^0-9]/g, '');
         if (modelDigits.includes(cleanQuery)) return true;
@@ -356,7 +350,7 @@
 
       const availableRegions = new Set();
       allInventory.forEach(item => {
-        if (!isInventoryMatch(item, rawSearch)) return;
+        if (rawSearch.length > 0 && !isInventoryMatch(item, rawSearch)) return;
         if (managerFilter !== 'ALL' && item.manager !== managerFilter) return;
 
         if (item.region && item.region !== '지역' && item.region !== 'None') {
@@ -452,7 +446,7 @@
 
       const availableCaps = new Set();
       allInventory.forEach(item => {
-        if (!isInventoryMatch(item, rawSearch)) return;
+        if (rawSearch.length > 0 && !isInventoryMatch(item, rawSearch)) return;
         if (managerFilter !== 'ALL' && item.manager !== managerFilter) return;
         if (!isRegionMatch(item.region)) return;
 
@@ -496,7 +490,7 @@
 
       const availableColors = new Set();
       allInventory.forEach(item => {
-        if (!isInventoryMatch(item, rawSearch)) return;
+        if (rawSearch.length > 0 && !isInventoryMatch(item, rawSearch)) return;
         if (managerFilter !== 'ALL' && item.manager !== managerFilter) return;
         if (!isRegionMatch(item.region)) return;
         if (capFilter !== 'ALL' && item.capacity !== capFilter) return;
@@ -544,11 +538,10 @@
         return true;
       });
 
-      // 보유처 검색 여부 확인
+      // 보유처 검색 여부 판단
       const isSearchingLocation = rawSearch.length > 0 && filtered.some(item => isMatch(item.location, rawSearch));
 
       if (isSearchingLocation) {
-        // 보유처 검색 시 모델명 우선 정렬
         filtered.sort((a, b) => {
           let modelCompare = (a.modelName || "").localeCompare(b.modelName || "", 'ko');
           if (modelCompare !== 0) return modelCompare;
@@ -573,7 +566,7 @@
       const countElem = document.getElementById('invCount');
       if (countElem) countElem.innerText = filtered.length;
       
-      // 검색이 안 걸린 상태에서는 상위 30개 표시, 검색 시 전체 표기
+      // 검색이 안 걸려있는 기본 상태에서는 상위 30개 표시
       const displayItems = isFiltered ? filtered : filtered.slice(0, 30);
 
       list.innerHTML = '';
