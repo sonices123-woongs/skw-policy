@@ -111,7 +111,7 @@
   </div>
 
   <main class="max-w-md mx-auto px-4 pt-1 space-y-3">
-    <!-- 🔍 간소화된 요약정보 (몇개 표시중 문구 삭제) -->
+    <!-- 🔍 요약정보 -->
     <div id="invSummary" class="text-sm text-slate-600 font-bold px-1 flex justify-between items-center">
       <div>
         <span>조회 결과: <strong id="invCount" class="text-blue-600 text-base">0</strong>건</span>
@@ -518,7 +518,7 @@
       const searchElem = document.getElementById('invSearchInput');
       const rawSearch = searchElem ? searchElem.value.trim() : '';
       const managerElem = document.getElementById('invManagerFilter');
-      const managerFilter = managerElem ? managerElem.value : 'ALL';
+      const managerFilter = managerElem ? managerFilter.value : 'ALL';
       const capElem = document.getElementById('invCapacityFilter');
       const capFilter = capElem ? capElem.value : 'ALL';
       const colorElem = document.getElementById('invColorFilter');
@@ -578,7 +578,6 @@
       const today = new Date();
       let htmlBuffer = '';
 
-      // 🔍 글자 크기를 더 크게 확대한 카드 구조
       displayItems.forEach(item => {
         let cardStyleClass = "bg-white border-slate-200";
         let dateBadgeHtml = "";
@@ -589,10 +588,10 @@
 
           if (diffDays >= 180) {
             cardStyleClass = "stock-card-6m";
-            dateBadgeHtml = `<span class="ml-2 text-xs font-bold bg-orange-600 text-white px-2 py-0.5 rounded">6개월+</span>`;
+            dateBadgeHtml = `<span class="ml-1.5 text-[11px] font-bold bg-orange-600 text-white px-1.5 py-0.5 rounded">6개월+</span>`;
           } else if (diffDays >= 90) {
             cardStyleClass = "stock-card-3m";
-            dateBadgeHtml = `<span class="ml-2 text-xs font-bold bg-emerald-600 text-white px-2 py-0.5 rounded">3개월+</span>`;
+            dateBadgeHtml = `<span class="ml-1.5 text-[11px] font-bold bg-emerald-600 text-white px-1.5 py-0.5 rounded">3개월+</span>`;
           }
         }
 
@@ -600,28 +599,30 @@
         const noteBadge = item.note ? `<span class="text-xs font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded border border-amber-200">비고: ${item.note}</span>` : '';
 
         htmlBuffer += `
-          <div class="${cardStyleClass} p-4 rounded-xl shadow-sm border space-y-2.5">
-            <div class="flex justify-between items-start">
-              <div class="flex items-center gap-2 flex-wrap">
-                <!-- 기종명 크기 확대 (text-sm -> text-base) -->
-                <span class="text-base font-bold bg-blue-50 text-blue-700 px-2.5 py-0.5 rounded">${item.modelName}</span>
-                <span class="text-sm font-semibold bg-slate-100 text-slate-700 px-2 py-0.5 rounded">${item.color || '기본색상'}</span>
+          <div class="${cardStyleClass} p-3.5 rounded-xl shadow-sm border space-y-2">
+            <div class="flex justify-between items-start gap-2">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <!-- 모델명 1단계 축소 (text-sm font-bold) -->
+                <span class="text-sm font-bold bg-blue-50 text-blue-700 px-2 py-0.5 rounded">${item.modelName}</span>
+                <span class="text-xs font-semibold bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded">${item.color || '기본색상'}</span>
                 ${noteBadge}
               </div>
-              <!-- 일련번호 크기 확대 (text-[11px] -> text-xs) -->
-              <div class="text-xs text-slate-500 font-mono">
+              <div class="text-xs text-slate-500 font-mono shrink-0 text-right">
                 S/N: <strong class="text-slate-800 font-bold">${item.serialNo || '-'}</strong>
               </div>
             </div>
 
-            <!-- 보유처 및 담당자 정보 크기 확대 (text-xs -> text-sm) -->
-            <div class="flex justify-between items-end pt-2 border-t border-slate-100 text-sm text-slate-600">
-              <div>
-                <div>보유처: <strong class="text-slate-900 font-bold text-base">${item.location}</strong></div>
-                ${moveDateText ? `<div class="text-xs text-slate-500 font-medium mt-0.5">${moveDateText}${dateBadgeHtml}</div>` : ''}
+            <!-- 하단 레이아웃: 담당 및 지역 우측 정렬 밀착 구조 -->
+            <div class="flex justify-between items-end pt-2 border-t border-slate-100 text-xs text-slate-600 gap-2">
+              <div class="min-w-0 flex-1">
+                <!-- 보유처 1단계 축소 (text-sm font-bold) -->
+                <div class="truncate">보유처: <strong class="text-slate-900 font-bold text-sm">${item.location}</strong></div>
+                ${moveDateText ? `<div class="text-[11px] text-slate-500 font-medium mt-0.5">${moveDateText}${dateBadgeHtml}</div>` : ''}
               </div>
-              <div class="text-right text-xs text-slate-500">
-                <span>담당: <strong class="text-slate-700 font-semibold">${item.manager}</strong></span>
+              
+              <!-- 🎯 담당 & 지역 우측 정렬 밀착 (절대 안 잘림) -->
+              <div class="shrink-0 text-right whitespace-nowrap">
+                <span>담당: <strong class="text-slate-800 font-semibold">${item.manager || '-'}</strong></span>
                 ${item.region ? `<span class="ml-1 text-blue-700 font-bold">(${item.region})</span>` : ''}
               </div>
             </div>
