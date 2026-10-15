@@ -4,11 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>재고 조회 - SKT 더블유대리점</title>
+  
+  <!-- 🚀 속도 최적화: 사전 로딩 설정 -->
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+  <link rel="prefetch" href="index.html">
+
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <style>
     @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
-    body { font-family: 'Pretendard', sans-serif; background-color: #f1f5f9; }
+    body { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif; background-color: #f1f5f9; }
     
     .stock-card-3m {
       background-color: #f0fdf4 !important;
@@ -27,44 +33,44 @@
       <div class="max-w-md mx-auto flex justify-between items-center">
         <div class="flex items-center gap-2">
           <!-- 메인 홈 메뉴로 이동 -->
-          <a href="index.html" class="bg-blue-700 hover:bg-blue-800 text-white px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition">
+          <a href="index.html" class="bg-blue-700 hover:bg-blue-800 text-white px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 transition">
             <i class="fas fa-home"></i> 홈
           </a>
           <div>
-            <span class="text-[10px] bg-blue-800 px-1.5 py-0.5 rounded font-bold">SKT 더블유대리점</span>
-            <h1 class="text-lg font-bold">재고 조회</h1>
+            <span class="text-xs bg-blue-800 px-2 py-0.5 rounded font-bold">SKT 더블유대리점</span>
+            <h1 class="text-xl font-bold">재고 조회</h1>
           </div>
         </div>
-        <button type="button" onclick="fetchInventoryData(true)" class="bg-blue-700 hover:bg-blue-800 text-white p-2 rounded-full text-xs flex items-center gap-1 transition">
+        <button type="button" onclick="fetchInventoryData(true)" class="bg-blue-700 hover:bg-blue-800 text-white p-2.5 rounded-full text-xs flex items-center gap-1 transition">
           <i class="fas fa-sync-alt" id="invSyncIcon"></i> 새로고침
         </button>
       </div>
     </header>
 
     <div class="max-w-md mx-auto px-4 pt-3 pb-3 space-y-2">
-      <div class="bg-white p-3 rounded-xl shadow-md border border-slate-200 space-y-3">
+      <div class="bg-white p-3.5 rounded-xl shadow-md border border-slate-200 space-y-3">
         <div class="relative">
-          <i class="fas fa-search absolute left-3 top-3 text-slate-400"></i>
-          <input type="text" id="invSearchInput" oninput="onInventorySearchChange()" placeholder="보유처(2자↑) / 기종(3자↑) / 일련번호(4자↑)" class="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <i class="fas fa-search absolute left-3.5 top-3.5 text-slate-400 text-base"></i>
+          <input type="text" id="invSearchInput" oninput="onInventorySearchChange()" placeholder="보유처(2자↑) / 기종(3자↑) / 일련번호(4자↑)" class="w-full pl-10 pr-4 py-2.5 border rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500">
         </div>
 
-        <div class="grid grid-cols-2 gap-2 text-xs">
+        <div class="grid grid-cols-2 gap-2 text-sm">
           <!-- 1. 담당 필터 -->
           <div>
-            <select id="invManagerFilter" onchange="onInventorySearchChange()" class="w-full p-2 border rounded-lg bg-slate-50 text-slate-700 font-semibold focus:outline-none">
+            <select id="invManagerFilter" onchange="onInventorySearchChange()" class="w-full p-2.5 border rounded-lg bg-slate-50 text-slate-700 font-semibold focus:outline-none text-sm">
               <option value="ALL">담당 전체</option>
             </select>
           </div>
 
           <!-- 2. 지역 다중 선택 (체크박스 드롭다운) -->
           <div class="relative" id="regionDropdownContainer">
-            <button onclick="toggleRegionDropdown(event)" type="button" class="w-full p-2 border rounded-lg bg-slate-50 text-slate-700 font-semibold text-left flex justify-between items-center focus:outline-none">
+            <button onclick="toggleRegionDropdown(event)" type="button" class="w-full p-2.5 border rounded-lg bg-slate-50 text-slate-700 font-semibold text-left flex justify-between items-center focus:outline-none text-sm">
               <span id="regionFilterBtnText" class="truncate">지역 전체</span>
-              <i class="fas fa-chevron-down text-slate-400 text-[10px] ml-1"></i>
+              <i class="fas fa-chevron-down text-slate-400 text-xs ml-1"></i>
             </button>
 
             <div id="regionMenu" class="hidden absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-56 overflow-y-auto p-2 space-y-1">
-              <div class="flex justify-between items-center pb-1 mb-1 border-b text-[11px] text-slate-500 font-bold px-1">
+              <div class="flex justify-between items-center pb-1.5 mb-1 border-b text-xs text-slate-500 font-bold px-1">
                 <span>지역 다중 선택</span>
                 <div class="space-x-1">
                   <button type="button" onclick="selectAllRegions(true)" class="text-blue-600 hover:underline">전체선택</button>
@@ -78,22 +84,22 @@
 
           <!-- 3. 용량 필터 -->
           <div>
-            <select id="invCapacityFilter" onchange="onCapacityFilterChange()" class="w-full p-2 border rounded-lg bg-slate-50 text-slate-700 font-semibold focus:outline-none">
+            <select id="invCapacityFilter" onchange="onCapacityFilterChange()" class="w-full p-2.5 border rounded-lg bg-slate-50 text-slate-700 font-semibold focus:outline-none text-sm">
               <option value="ALL">용량 전체</option>
             </select>
           </div>
 
           <!-- 4. 색상 필터 -->
           <div>
-            <select id="invColorFilter" onchange="renderInventory()" class="w-full p-2 border rounded-lg bg-slate-50 text-slate-700 font-semibold focus:outline-none">
+            <select id="invColorFilter" onchange="renderInventory()" class="w-full p-2.5 border rounded-lg bg-slate-50 text-slate-700 font-semibold focus:outline-none text-sm">
               <option value="ALL">색상 전체</option>
             </select>
           </div>
 
           <!-- 5. 정렬 기준 드롭다운 -->
           <div class="col-span-2 pt-2 border-t border-slate-100 flex items-center justify-between">
-            <span class="text-slate-500 font-bold text-[11px]"><i class="fas fa-sort text-blue-500 mr-1"></i>정렬 기준:</span>
-            <select id="invSortFilter" onchange="renderInventory()" class="w-2/3 p-1.5 border rounded-lg bg-blue-50 text-blue-800 font-bold focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs">
+            <span class="text-slate-600 font-bold text-xs"><i class="fas fa-sort text-blue-500 mr-1"></i>정렬 기준:</span>
+            <select id="invSortFilter" onchange="renderInventory()" class="w-2/3 p-2 border rounded-lg bg-blue-50 text-blue-800 font-bold focus:outline-none focus:ring-1 focus:ring-blue-500 text-xs">
               <option value="DEFAULT">기본 정렬 (담당/지역/매장순)</option>
               <option value="REGION_ASC">지역별 정렬</option>
               <option value="COLOR_ASC">색상 정렬</option>
@@ -105,12 +111,12 @@
   </div>
 
   <main class="max-w-md mx-auto px-4 pt-1 space-y-3">
-    <div id="invSummary" class="text-xs text-slate-500 font-bold px-1 flex justify-between items-center">
+    <!-- 🔍 간소화된 요약정보 (몇개 표시중 문구 삭제) -->
+    <div id="invSummary" class="text-sm text-slate-600 font-bold px-1 flex justify-between items-center">
       <div>
-        <span>조회 결과: <strong id="invCount" class="text-blue-600">0</strong>건</span>
-        <span id="invLimitMsg" class="text-[10px] text-slate-400 font-normal ml-1"></span>
+        <span>조회 결과: <strong id="invCount" class="text-blue-600 text-base">0</strong>건</span>
       </div>
-      <div id="invTimeInfo" class="text-[10px] text-slate-400 font-normal"></div>
+      <div id="invTimeInfo" class="text-xs text-slate-400 font-normal"></div>
     </div>
 
     <div id="invLoading" class="text-center py-8 text-slate-500 text-sm hidden">
@@ -283,23 +289,19 @@
       return cleanText.includes(cleanQuery);
     }
 
-    // 🎯 [핵심] 필드별 입력 길이 규칙 분리 구현
     function isInventoryMatch(item, query) {
       if (!query) return true;
       const cleanQuery = query.toLowerCase().replace(/[\s\-_]/g, '');
       const len = cleanQuery.length;
 
-      // 1. 거래처/보유처: 2글자 이상이면 검색
       if (len >= 2 && isMatch(item.location, cleanQuery)) {
         return true;
       }
 
-      // 2. 기종명/모델명: 3글자 이상이면 검색
       if (len >= 3 && isMatch(item.modelName, cleanQuery)) {
         return true;
       }
 
-      // 3. 일련번호: 4글자 이상이면 검색
       if (len >= 4 && isMatch(item.serialNo, cleanQuery)) {
         return true;
       }
@@ -348,7 +350,7 @@
 
       const availableRegions = new Set();
       allInventory.forEach(item => {
-        if (rawSearch.length === 1) return; // 1글자는 스킵
+        if (rawSearch.length === 1) return;
         if (rawSearch.length >= 2 && !isInventoryMatch(item, rawSearch)) return;
         if (managerFilter !== 'ALL' && item.manager !== managerFilter) return;
 
@@ -365,13 +367,13 @@
       const sortedRegions = Array.from(availableRegions).sort();
 
       if (sortedRegions.length === 0) {
-        listContainer.innerHTML = `<div class="text-xs text-slate-400 p-2 text-center">선택 가능한 지역 없음</div>`;
+        listContainer.innerHTML = `<div class="text-sm text-slate-400 p-2 text-center">선택 가능한 지역 없음</div>`;
       } else {
         sortedRegions.forEach(r => {
           const isChecked = selectedRegions.has(r) ? 'checked' : '';
           listContainer.innerHTML += `
-            <label class="flex items-center gap-2 p-1 hover:bg-slate-50 rounded cursor-pointer text-xs text-slate-700">
-              <input type="checkbox" value="${r}" ${isChecked} onchange="onRegionCheckboxChange('${r}', this.checked)" class="rounded text-blue-600 focus:ring-blue-500">
+            <label class="flex items-center gap-2 p-1.5 hover:bg-slate-50 rounded cursor-pointer text-sm text-slate-700">
+              <input type="checkbox" value="${r}" ${isChecked} onchange="onRegionCheckboxChange('${r}', this.checked)" class="rounded text-blue-600 focus:ring-blue-500 w-4 h-4">
               <span>${r}</span>
             </label>
           `;
@@ -527,12 +529,9 @@
       const list = document.getElementById('inventoryList');
       if (!list) return;
 
-      // 1글자 입력 시 차단 및 안내 문구 표기
       if (rawSearch.length === 1) {
         document.getElementById('invCount').innerText = '0';
-        const limitMsg = document.getElementById('invLimitMsg');
-        if (limitMsg) limitMsg.innerText = '';
-        list.innerHTML = `<div class="text-center py-8 text-amber-600 font-semibold text-sm">검색어를 2자리 이상 입력해 주세요.</div>`;
+        list.innerHTML = `<div class="text-center py-8 text-amber-600 font-semibold text-base">검색어를 2자리 이상 입력해 주세요.</div>`;
         return;
       }
 
@@ -556,7 +555,7 @@
         });
       } else if (sortFilter === 'COLOR_ASC') {
         filtered.sort((a, b) => (a.color || "").localeCompare(b.color || "", 'ko'));
-      } else { // DEFAULT
+      } else {
         filtered.sort((a, b) => {
           if (a.manager !== b.manager) return (a.manager || "").localeCompare(b.manager || "", 'ko');
           if (a.region !== b.region) return (a.region || "").localeCompare(b.region || "", 'ko');
@@ -569,21 +568,17 @@
       
       const displayItems = isFiltered ? filtered : filtered.slice(0, 30);
 
-      const limitMsg = document.getElementById('invLimitMsg');
-      if (limitMsg) {
-        limitMsg.innerText = (!isFiltered && filtered.length > 30) ? '(상위 30개 표시 중 - 검색 시 전체 조회)' : '';
-      }
-
       list.innerHTML = '';
 
       if (filtered.length === 0) {
-        list.innerHTML = `<div class="text-center py-8 text-slate-400 text-sm">조회된 재고가 없습니다.</div>`;
+        list.innerHTML = `<div class="text-center py-8 text-slate-400 text-base">조회된 재고가 없습니다.</div>`;
         return;
       }
 
       const today = new Date();
       let htmlBuffer = '';
 
+      // 🔍 글자 크기를 더 크게 확대한 카드 구조
       displayItems.forEach(item => {
         let cardStyleClass = "bg-white border-slate-200";
         let dateBadgeHtml = "";
@@ -594,36 +589,39 @@
 
           if (diffDays >= 180) {
             cardStyleClass = "stock-card-6m";
-            dateBadgeHtml = `<span class="ml-1.5 text-[10px] font-bold bg-orange-600 text-white px-1.5 py-0.5 rounded">6개월+</span>`;
+            dateBadgeHtml = `<span class="ml-2 text-xs font-bold bg-orange-600 text-white px-2 py-0.5 rounded">6개월+</span>`;
           } else if (diffDays >= 90) {
             cardStyleClass = "stock-card-3m";
-            dateBadgeHtml = `<span class="ml-1.5 text-[10px] font-bold bg-emerald-600 text-white px-1.5 py-0.5 rounded">3개월+</span>`;
+            dateBadgeHtml = `<span class="ml-2 text-xs font-bold bg-emerald-600 text-white px-2 py-0.5 rounded">3개월+</span>`;
           }
         }
 
         const moveDateText = item.moveDate ? `입고일: ${item.moveDate}` : '';
-        const noteBadge = item.note ? `<span class="text-[10px] font-bold bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded border border-amber-200">비고: ${item.note}</span>` : '';
+        const noteBadge = item.note ? `<span class="text-xs font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded border border-amber-200">비고: ${item.note}</span>` : '';
 
         htmlBuffer += `
-          <div class="${cardStyleClass} p-3.5 rounded-xl shadow-sm border space-y-2">
+          <div class="${cardStyleClass} p-4 rounded-xl shadow-sm border space-y-2.5">
             <div class="flex justify-between items-start">
-              <div class="flex items-center gap-1.5 flex-wrap">
-                <span class="text-xs font-bold bg-blue-50 text-blue-700 px-2 py-0.5 rounded">${item.modelName}</span>
-                <span class="text-xs font-semibold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">${item.color || '기본색상'}</span>
+              <div class="flex items-center gap-2 flex-wrap">
+                <!-- 기종명 크기 확대 (text-sm -> text-base) -->
+                <span class="text-base font-bold bg-blue-50 text-blue-700 px-2.5 py-0.5 rounded">${item.modelName}</span>
+                <span class="text-sm font-semibold bg-slate-100 text-slate-700 px-2 py-0.5 rounded">${item.color || '기본색상'}</span>
                 ${noteBadge}
               </div>
-              <div class="text-[11px] text-slate-400 font-mono">
-                S/N: <strong class="text-slate-600">${item.serialNo || '-'}</strong>
+              <!-- 일련번호 크기 확대 (text-[11px] -> text-xs) -->
+              <div class="text-xs text-slate-500 font-mono">
+                S/N: <strong class="text-slate-800 font-bold">${item.serialNo || '-'}</strong>
               </div>
             </div>
 
-            <div class="flex justify-between items-end pt-1 border-t border-slate-100/60 text-xs text-slate-500">
+            <!-- 보유처 및 담당자 정보 크기 확대 (text-xs -> text-sm) -->
+            <div class="flex justify-between items-end pt-2 border-t border-slate-100 text-sm text-slate-600">
               <div>
-                <div>보유처: <strong class="text-slate-800 font-semibold">${item.location}</strong></div>
-                ${moveDateText ? `<div class="text-[10px] text-slate-500 font-medium">${moveDateText}${dateBadgeHtml}</div>` : ''}
+                <div>보유처: <strong class="text-slate-900 font-bold text-base">${item.location}</strong></div>
+                ${moveDateText ? `<div class="text-xs text-slate-500 font-medium mt-0.5">${moveDateText}${dateBadgeHtml}</div>` : ''}
               </div>
-              <div class="text-right text-[11px] text-slate-400">
-                <span>담당: <strong class="text-slate-600 font-medium">${item.manager}</strong></span>
+              <div class="text-right text-xs text-slate-500">
+                <span>담당: <strong class="text-slate-700 font-semibold">${item.manager}</strong></span>
                 ${item.region ? `<span class="ml-1 text-blue-700 font-bold">(${item.region})</span>` : ''}
               </div>
             </div>
